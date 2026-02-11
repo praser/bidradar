@@ -45,7 +45,7 @@ jobs:
           SHA256=$(sha256sum "bidradar-${VERSION}.tar.gz" | cut -d ' ' -f 1)
           URL="https://github.com/praser/bidradar/releases/download/${GITHUB_REF_NAME}/bidradar-${VERSION}.tar.gz"
 
-          gh repo clone praser/homebrew-bidradar /tmp/homebrew-bidradar
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/praser/homebrew-bidradar.git" /tmp/homebrew-bidradar
 
           sed -i "s|url \".*\"|url \"${URL}\"|" /tmp/homebrew-bidradar/Formula/bidradar.rb
           sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" /tmp/homebrew-bidradar/Formula/bidradar.rb
