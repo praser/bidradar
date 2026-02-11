@@ -1,6 +1,7 @@
 import { Command, InvalidArgumentError } from 'commander'
 import { z } from 'zod'
-import { getOffers } from '../../cef/index'
+import ora from 'ora'
+import { downloadFile, parseOffers } from '../../cef/index'
 import { closeDb } from '../../db/index'
 import { createOfferRepository } from '../../db/offerRepository'
 import { reconcileOffers } from '../../core/reconcileOffers'
@@ -35,12 +36,25 @@ reconcile
   .description('Reconcile offers from Caixa Econômica Federal')
   .option('-u, --uf <code>', 'Brazilian state code (e.g. DF, SP, RJ)', parseUf, 'geral')
   .action(async (opts: { uf: string }) => {
+    const spinner = ora()
     try {
-      const offers = await getOffers(opts.uf)
+      spinner.start(`Downloading offers from CEF (${opts.uf})...`)
+      const stream = await downloadFile(opts.uf)
+
+      spinner.text = `Parsing offers...`
+      const offers = await parseOffers(stream)
+      spinner.succeed(`Parsed ${offers.length} offers from CEF (${opts.uf})`)
+
+      spinner.start('Saving to database...')
       const repo = createOfferRepository()
       const result = await reconcileOffers(opts.uf, offers, repo)
-      console.log(`\nReconcile CEF ${opts.uf}`)
+      spinner.succeed('Reconciliation complete')
+
+      console.log()
       console.table(result)
+    } catch (err) {
+      spinner.fail('Reconciliation failed')
+      throw err
     } finally {
       await closeDb()
     }
