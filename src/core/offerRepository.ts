@@ -18,5 +18,5 @@ export interface OfferRepository {
     offer: Offer,
   ): Promise<void>
   touchLastSeen(internalId: string): Promise<void>
-  softDeleteMissing(activeSourceIds: ReadonlySet<string>): Promise<void>
+  softDeleteMissing(uf: string, activeSourceIds: ReadonlySet<string>): Promise<number>
 }

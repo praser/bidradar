@@ -10,7 +10,7 @@ const createLatin1ToUtf8Stream = () =>
   })
 
 /** Downloads CSV and returns a Node Readable stream of UTF-8 bytes. */
-export const downloadFile = async (estate: 'DF' = 'DF') => {
+export const downloadFile = async (estate: string = 'DF') => {
   const res = await fetch(
     `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${estate}.csv`,
     {

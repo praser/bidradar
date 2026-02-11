@@ -12,4 +12,4 @@ export interface Offer {
   offerUrl: URL
 }
 
-export type GetOffers = () => Promise<Offer[]>
+export type GetOffers = (uf?: string) => Promise<Offer[]>

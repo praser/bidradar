@@ -86,17 +86,20 @@ export function createOfferRepository(): OfferRepository {
         .where(eq(offers.id, internalId))
     },
 
-    async softDeleteMissing(activeSourceIds) {
-      if (activeSourceIds.size === 0) return
-      await db
+    async softDeleteMissing(uf, activeSourceIds) {
+      if (activeSourceIds.size === 0) return 0
+      const removed = await db
         .update(offers)
         .set({ removedAt: nowUTC() })
         .where(
           and(
+            eq(offers.uf, uf),
             notInArray(offers.sourceId, [...activeSourceIds]),
             isNull(offers.removedAt),
           ),
         )
+        .returning({ id: offers.id })
+      return removed.length
     },
   }
 }
