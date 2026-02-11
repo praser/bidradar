@@ -1,5 +1,5 @@
-import type { Offer } from './types.js'
-import type { OfferRepository } from './offerRepository.js'
+import type { Offer } from './types'
+import type { OfferRepository } from './offerRepository'
 
 export async function reconcileOffers(
   offers: readonly Offer[],

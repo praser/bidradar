@@ -1,7 +1,7 @@
-import { downloadFile } from './dowloader.js'
-import type { Offer, GetOffers } from '../core/types.js'
+import { downloadFile } from './dowloader'
+import type { Offer, GetOffers } from '../core/types'
 import { parse } from 'csv'
-import { CefOffer } from './CefOffer.js'
+import { CefOffer } from './CefOffer'
 
 export const getOffers: GetOffers = async () => {
   const offers: Offer[] = []

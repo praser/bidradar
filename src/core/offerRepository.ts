@@ -1,4 +1,4 @@
-import type { Offer } from './types.js'
+import type { Offer } from './types'
 
 export interface ExistingOffer {
   readonly internalId: string

@@ -1,7 +1,7 @@
-import { getOffers } from './src/cef/index.js'
-import { closeDb } from './src/db/index.js'
-import { createOfferRepository } from './src/db/offerRepository.js'
-import { reconcileOffers } from './src/core/reconcileOffers.js'
+import { getOffers } from './src/cef/index'
+import { closeDb } from './src/db/index'
+import { createOfferRepository } from './src/db/offerRepository'
+import { reconcileOffers } from './src/core/reconcileOffers'
 
 async function main() {
   const offers = await getOffers()

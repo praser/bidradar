@@ -1,6 +1,6 @@
-import type { Offer } from '../core/types.js'
-import type { OfferRepository } from '../core/offerRepository.js'
-import { getDb, offers, type OfferRow } from './index.js'
+import type { Offer } from '../core/types'
+import type { OfferRepository } from '../core/offerRepository'
+import { getDb, offers, type OfferRow } from './index'
 import { eq, and, notInArray, isNull } from 'drizzle-orm'
 
 const nowUTC = () => new Date()

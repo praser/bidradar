@@ -7,7 +7,7 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+    "module": "preserve",
     "target": "esnext",
     "types": ["node"],
     // For nodejs: npm install -D @types/node (already in devDependencies)
