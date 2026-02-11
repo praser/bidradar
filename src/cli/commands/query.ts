@@ -12,10 +12,21 @@ interface QueryOpts {
   includeRemoved: boolean
 }
 
+function validateInput(value: string, name: string): void {
+  if (value.includes(';')) {
+    throw new Error(`Invalid ${name}: semicolons are not allowed`)
+  }
+}
+
 function buildQuery(opts: QueryOpts): { sql: string; pageSize: number; page: number } {
   const pageSize = Math.max(1, Math.min(1000, Number(opts.pageSize) || 50))
   const page = Math.max(1, Number(opts.page) || 1)
   const offset = (page - 1) * pageSize
+
+  validateInput(opts.fields, '--fields')
+  if (opts.where) validateInput(opts.where, '--where')
+  if (opts.group) validateInput(opts.group, '--group')
+  if (opts.sort) validateInput(opts.sort, '--sort')
 
   const parts: string[] = []
   parts.push(`SELECT ${opts.fields} FROM offers`)
@@ -62,7 +73,7 @@ export const query = new Command('query')
 
       spinner.start('Querying database...')
       const client = getRawClient()
-      const rows = await client.unsafe(sql)
+      const rows = await client.begin('READ ONLY', (tx) => tx.unsafe(sql))
       spinner.succeed(`Found ${rows.length} row(s) (page ${page}, page size ${pageSize})`)
 
       if (rows.length === 0) {
