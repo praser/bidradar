@@ -1,4 +1,4 @@
-import type { Offer } from './OfferInterface.js'
+import type { Offer } from '../core/types.js'
 import { z } from 'zod'
 
 const schema = z

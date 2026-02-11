@@ -11,3 +11,5 @@ export interface Offer {
   sellingType: string
   offerUrl: URL
 }
+
+export type GetOffers = () => Promise<Offer[]>

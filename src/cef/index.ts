@@ -1,9 +1,9 @@
-import { downloadFile } from './utils/file-utils.js'
-import type { Offer } from './offer-sourcers/OfferInterface.js'
+import { downloadFile } from './dowloader.js'
+import type { Offer, GetOffers } from '../core/types.js'
 import { parse } from 'csv'
-import { CefOffer } from './offer-sourcers/CefOffer.js'
+import { CefOffer } from './CefOffer.js'
 
-const run = async () => {
+export const getOffers: GetOffers = async () => {
   const offers: Offer[] = []
 
   const stream = await downloadFile()
@@ -18,5 +18,3 @@ const run = async () => {
       .on('error', reject)
   })
 }
-
-run().then(console.log)
