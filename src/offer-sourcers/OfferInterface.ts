@@ -1,4 +1,4 @@
-export type Offer = {
+export interface Offer {
   id: string
   uf: string
   city: string
@@ -7,7 +7,6 @@ export type Offer = {
   askingPrice: number
   evaluationPrice: number
   discountPercent: number
-  potentialProfit: number
   description: string
   sellingType: string
   offerUrl: URL
