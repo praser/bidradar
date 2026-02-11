@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "index.js",
+  "bin": { "bidradar": "./dist/bin/index.js" },
+  "files": ["dist"],
   "scripts": {
+    "build": "tsup",
     "dev": "tsx index.ts reconcile cef --uf DF",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.19.11",
     "drizzle-kit": "^0.31.9",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
