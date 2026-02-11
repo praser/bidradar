@@ -1,7 +1,32 @@
-import { readFile } from 'node:fs/promises'
+import { Readable, Transform } from 'node:stream'
 
-/** Reads a file as ISO-8859-1 (latin1) and returns its content as a Unicode string (safe to use or write as UTF-8). */
-export const readLocalFile = async (path: string): Promise<string> => {
-  const buffer = await readFile(path, { encoding: null })
-  return buffer.toString('latin1')
+const createLatin1ToUtf8Stream = () =>
+  new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      const str = chunk.toString('latin1')
+      this.push(Buffer.from(str, 'utf-8'))
+      callback(null)
+    },
+  })
+
+/** Downloads CSV and returns a Node Readable stream of UTF-8 bytes. */
+export const downloadFile = async (estate: 'DF' = 'DF') => {
+  const res = await fetch(
+    `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${estate}.csv`,
+    {
+      headers: {
+        'accept-language': 'en,pt-BR;q=0.9,pt;q=0.8',
+        'sec-fetch-site': 'same-site',
+        'user-agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+      },
+    },
+  )
+
+  if (!res.ok || !res.body) {
+    throw new Error(`Failed to download file: ${res.statusText}`)
+  }
+
+  // Type assertion: fetch's ReadableStream is compatible with Node's fromWeb at runtime
+  return Readable.fromWeb(res.body as never).pipe(createLatin1ToUtf8Stream())
 }

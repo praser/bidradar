@@ -1,0 +1,22 @@
+meta {
+  name: download
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_df.csv
+  body: none
+  auth: inherit
+}
+
+headers {
+  accept-language: en,pt-BR;q=0.9,pt;q=0.8
+  sec-fetch-site: same-site
+  user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
