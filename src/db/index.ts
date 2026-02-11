@@ -28,4 +28,8 @@ export async function closeDb(): Promise<void> {
   }
 }
 
+export function getRawClient() {
+  return getClient()
+}
+
 export { offers, type OfferRow, type OfferInsert } from './schema'
