@@ -1,5 +1,5 @@
 {
-  "name": "imoveis-caixa",
+  "name": "bidradar",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -23,6 +23,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "commander": "^14.0.3",
     "csv": "^6.4.1",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.8",

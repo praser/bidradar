@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
       csv:
         specifier: ^6.4.1
         version: 6.4.1
@@ -497,6 +500,10 @@ packages:
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
+
   csv-generate@4.5.0:
     resolution: {integrity: sha512-aQr/vmOKyBSBHNwYhAoXw1+kUsPnMSwmYgpNoo36rIXoG1ecWILnvPGZeQ6oUjzrWknZAD3+jfpqYOBAl4x15A==}
 
@@ -920,6 +927,8 @@ snapshots:
       undici-types: 6.21.0
 
   buffer-from@1.1.2: {}
+
+  commander@14.0.3: {}
 
   csv-generate@4.5.0: {}
 
