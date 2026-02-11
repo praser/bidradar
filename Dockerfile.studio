@@ -1,0 +1,14 @@
+# Drizzle Studio only (schema + config)
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+COPY drizzle.config.ts tsconfig.json ./
+COPY src/db/schema.ts src/db/
+
+RUN pnpm install --frozen-lockfile
+
+EXPOSE 4983
+ENV HOST=0.0.0.0
+CMD ["pnpm", "exec", "drizzle-kit", "studio", "--host", "0.0.0.0"]

@@ -5,7 +5,12 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx index.ts"
+    "dev": "tsx index.ts",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [],
   "author": "",
@@ -13,11 +18,14 @@
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
     "@types/node": "^22.19.11",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "csv": "^6.4.1",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8",
     "zod": "^4.3.6"
   }
 }

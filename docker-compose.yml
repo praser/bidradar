@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: imoveis
+      POSTGRES_PASSWORD: imoveis
+      POSTGRES_DB: imoveis
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  drizzle-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.studio
+    ports:
+      - '4983:4983'
+    environment:
+      DATABASE_URL: postgresql://imoveis:imoveis@postgres:5432/imoveis
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
