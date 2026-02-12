@@ -36,6 +36,13 @@
       "when": 1770870026000,
       "tag": "0004_backfill_property_type",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770871164488,
+      "tag": "0005_petite_post",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import {
+  boolean,
   pgTable,
   text,
   uuid,
@@ -51,3 +52,23 @@ export const users = pgTable('users', {
 
 export type UserRow = typeof users.$inferSelect
 export type UserInsert = typeof users.$inferInsert
+
+export const propertyDetails = pgTable('property_details', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  offerId: uuid('offer_id')
+    .notNull()
+    .unique()
+    .references(() => offers.id),
+  totalArea: numeric('total_area', { precision: 10, scale: 2 }),
+  privateArea: numeric('private_area', { precision: 10, scale: 2 }),
+  landArea: numeric('land_area', { precision: 10, scale: 2 }),
+  bedrooms: integer('bedrooms'),
+  bathrooms: integer('bathrooms'),
+  livingRooms: integer('living_rooms'),
+  kitchens: integer('kitchens'),
+  garageSpaces: integer('garage_spaces'),
+  hasServiceArea: boolean('has_service_area').notNull().default(false),
+})
+
+export type PropertyDetailsRow = typeof propertyDetails.$inferSelect
+export type PropertyDetailsInsert = typeof propertyDetails.$inferInsert

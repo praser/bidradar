@@ -32,4 +32,14 @@ export function getRawClient() {
   return getClient()
 }
 
-export { offers, users, type OfferRow, type OfferInsert, type UserRow, type UserInsert } from './schema.js'
+export {
+  offers,
+  users,
+  propertyDetails,
+  type OfferRow,
+  type OfferInsert,
+  type UserRow,
+  type UserInsert,
+  type PropertyDetailsRow,
+  type PropertyDetailsInsert,
+} from './schema.js'

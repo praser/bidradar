@@ -1,5 +1,7 @@
 import type { Offer } from '@bidradar/shared'
 import type { OfferRepository } from '../core/offerRepository.js'
+import { parseDescription } from '../cef/parseDescription.js'
+import { createPropertyDetailsRepository } from './propertyDetailsRepository.js'
 import { getDb, offers, type OfferRow } from './index.js'
 import { eq, and, notInArray, isNull } from 'drizzle-orm'
 
@@ -47,6 +49,7 @@ function offerEquals(row: OfferRow, offer: Offer): boolean {
 
 export function createOfferRepository(): OfferRepository {
   const db = getDb()
+  const pdRepo = createPropertyDetailsRepository()
 
   return {
     async findBySourceId(sourceId, offer) {
@@ -66,7 +69,13 @@ export function createOfferRepository(): OfferRepository {
     },
 
     async insertNew(offer) {
-      await db.insert(offers).values(offerToRow(offer))
+      const [inserted] = await db
+        .insert(offers)
+        .values(offerToRow(offer))
+        .returning({ id: offers.id })
+      if (inserted !== undefined) {
+        await pdRepo.upsert(inserted.id, parseDescription(offer.description))
+      }
     },
 
     async updateChanged(internalId, version, offer) {
@@ -79,6 +88,7 @@ export function createOfferRepository(): OfferRepository {
           updatedAt: nowUTC(),
         })
         .where(eq(offers.id, internalId))
+      await pdRepo.upsert(internalId, parseDescription(offer.description))
     },
 
     async touchLastSeen(internalId) {

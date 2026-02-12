@@ -1,6 +1,6 @@
 {
-  "id": "a1b2c3d4-5678-4abc-9def-0123456789ab",
-  "prevId": "7d15ce03-4093-43ab-9fac-42dc204f5f6a",
+  "id": "b7201571-7622-4a1a-aa78-f8694b5ac870",
+  "prevId": "a1b2c3d4-5678-4abc-9def-0123456789ab",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -124,6 +124,109 @@
           "nullsNotDistinct": false,
           "columns": [
             "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.property_details": {
+      "name": "property_details",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "offer_id": {
+          "name": "offer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_area": {
+          "name": "total_area",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "private_area": {
+          "name": "private_area",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "land_area": {
+          "name": "land_area",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bedrooms": {
+          "name": "bedrooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bathrooms": {
+          "name": "bathrooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "living_rooms": {
+          "name": "living_rooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kitchens": {
+          "name": "kitchens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "garage_spaces": {
+          "name": "garage_spaces",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_service_area": {
+          "name": "has_service_area",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "property_details_offer_id_offers_id_fk": {
+          "name": "property_details_offer_id_offers_id_fk",
+          "tableFrom": "property_details",
+          "tableTo": "offers",
+          "columnsFrom": [
+            "offer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "property_details_offer_id_unique": {
+          "name": "property_details_offer_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "offer_id"
           ]
         }
       },
