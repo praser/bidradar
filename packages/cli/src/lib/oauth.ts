@@ -11,6 +11,8 @@ interface OAuthResult {
 
 export function startOAuthFlow(): Promise<OAuthResult> {
   return new Promise((resolve, reject) => {
+    let timeout: NodeJS.Timeout
+
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost')
       const code = url.searchParams.get('code')
@@ -21,6 +23,7 @@ export function startOAuthFlow(): Promise<OAuthResult> {
         res.end(
           `<html><body><h1>Authentication failed</h1><p>${error}</p></body></html>`,
         )
+        clearTimeout(timeout)
         server.close()
         reject(new Error(`OAuth error: ${error}`))
         return
@@ -34,6 +37,7 @@ export function startOAuthFlow(): Promise<OAuthResult> {
         const address = server.address()
         const port =
           address && typeof address !== 'string' ? address.port : 0
+        clearTimeout(timeout)
         server.close()
         resolve({
           code,
@@ -65,7 +69,7 @@ export function startOAuthFlow(): Promise<OAuthResult> {
       open(authUrl.toString())
     })
 
-    setTimeout(() => {
+    timeout = setTimeout(() => {
       server.close()
       reject(new Error('OAuth flow timed out after 120 seconds'))
     }, 120_000)
