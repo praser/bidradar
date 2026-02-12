@@ -13,9 +13,9 @@ export const query = new Command('query')
   .description('Query offers')
   .option('-f, --filter <expression>', 'OData-style filter expression')
   .option(
-    '-s, --sort <field:dir>',
-    'Sort field:direction (e.g. askingPrice:asc, updatedAt:desc)',
-    'updatedAt:desc',
+    '-s, --sort <expr>',
+    'Sort expression (e.g. "uf asc, askingPrice desc")',
+    'updatedAt desc',
   )
   .option('-l, --page-size <n>', 'Rows per page', '50')
   .option('-p, --page <n>', 'Page number', '1')

@@ -43,17 +43,19 @@ export function offerRoutes() {
 
     const offset = (query.page - 1) * query.pageSize
 
-    let sortClause
+    let sortClauses
     try {
-      sortClause = parseSort(query.sort)
+      sortClauses = parseSort(query.sort)
     } catch (err) {
       return c.json(
         { error: 'INVALID_SORT', message: (err as Error).message, statusCode: 400 },
         400,
       )
     }
-    const sortCol = SORT_COLUMN_MAP[sortClause.field]
-    const orderBy = sortClause.direction === 'asc' ? asc(sortCol) : desc(sortCol)
+    const orderBy = sortClauses.map((s) => {
+      const col = SORT_COLUMN_MAP[s.field]
+      return s.direction === 'asc' ? asc(col) : desc(col)
+    })
 
     const rows = await db
       .select()
@@ -61,7 +63,7 @@ export function offerRoutes() {
       .where(where)
       .limit(query.pageSize)
       .offset(offset)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
 
     const data = rows.map((row) => ({
       id: row.sourceId,

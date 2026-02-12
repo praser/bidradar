@@ -5,21 +5,33 @@ import { SORTABLE_FIELDS, type SortClause } from './filter/types.js'
 
 const SORTABLE_SET = new Set<string>(SORTABLE_FIELDS)
 
-export function parseSort(input: string): SortClause {
-  const parts = input.split(':')
-  const field = parts[0]!
-  const direction = parts[1] ?? 'asc'
+export function parseSort(input: string): SortClause[] {
+  const clauses: SortClause[] = []
 
-  if (!SORTABLE_SET.has(field)) {
-    throw new Error(
-      `Unknown sort field '${field}'. Valid fields: ${SORTABLE_FIELDS.join(', ')}`,
-    )
-  }
-  if (direction !== 'asc' && direction !== 'desc') {
-    throw new Error(`Invalid sort direction '${direction}'. Use 'asc' or 'desc'`)
+  for (const segment of input.split(',')) {
+    const tokens = segment.trim().split(/\s+/)
+    const field = tokens[0]
+    const direction = tokens[1] ?? 'asc'
+
+    if (!field) continue
+
+    if (!SORTABLE_SET.has(field)) {
+      throw new Error(
+        `Unknown sort field '${field}'. Valid fields: ${SORTABLE_FIELDS.join(', ')}`,
+      )
+    }
+    if (direction !== 'asc' && direction !== 'desc') {
+      throw new Error(`Invalid sort direction '${direction}'. Use 'asc' or 'desc'`)
+    }
+
+    clauses.push({ field: field as SortClause['field'], direction })
   }
 
-  return { field: field as SortClause['field'], direction }
+  if (clauses.length === 0) {
+    throw new Error('Sort expression must contain at least one field')
+  }
+
+  return clauses
 }
 
 // POST /auth/session
@@ -40,7 +52,7 @@ export const OffersQuerySchema = z.object({
   includeRemoved: z.coerce.boolean().optional().default(false),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(1000).optional().default(50),
-  sort: z.string().default('updatedAt:desc'),
+  sort: z.string().default('updatedAt desc'),
 })
 
 export const OffersResponseSchema = z.object({
