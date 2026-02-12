@@ -14,6 +14,7 @@ const COLUMN_MAP: Record<FilterField, AnyColumn> = {
   neighborhood: offers.neighborhood,
   address: offers.address,
   description: offers.description,
+  propertyType: offers.propertyType,
   sellingType: offers.sellingType,
   askingPrice: offers.askingPrice,
   evaluationPrice: offers.evaluationPrice,

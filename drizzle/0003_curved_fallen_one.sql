@@ -1,0 +1,1 @@
+ALTER TABLE "offers" ADD COLUMN "property_type" text DEFAULT '' NOT NULL;

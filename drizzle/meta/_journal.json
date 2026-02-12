@@ -22,6 +22,20 @@
       "when": 1770860387445,
       "tag": "0002_bizarre_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770870025950,
+      "tag": "0003_curved_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770870026000,
+      "tag": "0004_backfill_property_type",
+      "breakpoints": true
     }
   ]
 }

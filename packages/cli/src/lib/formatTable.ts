@@ -31,6 +31,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'city', header: 'Cidade', hAlign: 'left' },
   { key: 'neighborhood', header: 'Bairro', hAlign: 'left' },
   { key: 'address', header: 'Endere\u00e7o', hAlign: 'left' },
+  { key: 'propertyType', header: 'Tipo', hAlign: 'left' },
   { key: 'sellingType', header: 'Modalidade', hAlign: 'left' },
   {
     key: 'askingPrice',
@@ -62,6 +63,7 @@ const ALL_COLUMNS: ColumnDef[] = [
 const DEFAULT_KEYS: (keyof Offer)[] = [
   'uf',
   'city',
+  'propertyType',
   'sellingType',
   'askingPrice',
   'evaluationPrice',

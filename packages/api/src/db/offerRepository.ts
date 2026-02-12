@@ -16,6 +16,7 @@ function offerToRow(offer: Offer) {
     evaluationPrice: String(offer.evaluationPrice),
     discountPercent: String(offer.discountPercent),
     description: offer.description,
+    propertyType: offer.propertyType,
     sellingType: offer.sellingType,
     offerUrl: offer.offerUrl,
     lastSeenAt: nowUTC(),
@@ -38,6 +39,7 @@ function offerEquals(row: OfferRow, offer: Offer): boolean {
     num(row.evaluationPrice) === offer.evaluationPrice &&
     num(row.discountPercent) === offer.discountPercent &&
     row.description === offer.description &&
+    row.propertyType === offer.propertyType &&
     row.sellingType === offer.sellingType &&
     row.offerUrl === offer.offerUrl
   )

@@ -4,6 +4,7 @@ export const TEXT_FIELDS = [
   'neighborhood',
   'address',
   'description',
+  'propertyType',
   'sellingType',
 ] as const
 

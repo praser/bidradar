@@ -40,6 +40,7 @@ const schema = z
       ),
       discountPercent: Number(discountPercent),
       description: description.trim(),
+      propertyType: description.trim().split(', ')[0] ?? '',
       sellingType: sellingType.trim(),
       offerUrl: new URL(offerUrl).toString(),
     }),
@@ -55,6 +56,7 @@ export class CefOffer implements Offer {
   readonly evaluationPrice: number
   readonly discountPercent: number
   readonly description: string
+  readonly propertyType: string
   readonly sellingType: string
   readonly offerUrl: string
 
@@ -69,6 +71,7 @@ export class CefOffer implements Offer {
     this.evaluationPrice = parsed.evaluationPrice
     this.discountPercent = parsed.discountPercent
     this.description = parsed.description
+    this.propertyType = parsed.propertyType
     this.sellingType = parsed.sellingType
     this.offerUrl = parsed.offerUrl
   }

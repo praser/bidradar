@@ -10,6 +10,7 @@ export interface Offer {
   evaluationPrice: number
   discountPercent: number
   description: string
+  propertyType: string
   sellingType: string
   offerUrl: string
 }
@@ -24,6 +25,7 @@ export const OfferSchema = z.object({
   evaluationPrice: z.number(),
   discountPercent: z.number(),
   description: z.string(),
+  propertyType: z.string(),
   sellingType: z.string(),
   offerUrl: z.string().url(),
 })

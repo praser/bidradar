@@ -75,6 +75,7 @@ export function offerRoutes() {
       evaluationPrice: Number(row.evaluationPrice),
       discountPercent: Number(row.discountPercent),
       description: row.description,
+      propertyType: row.propertyType,
       sellingType: row.sellingType,
       offerUrl: row.offerUrl,
     }))

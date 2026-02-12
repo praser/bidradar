@@ -21,6 +21,7 @@ export const offers = pgTable('offers', {
   }).notNull(),
   discountPercent: numeric('discount_percent', { precision: 6, scale: 2 }).notNull(),
   description: text('description').notNull(),
+  propertyType: text('property_type').notNull().default(''),
   sellingType: text('selling_type').notNull(),
   offerUrl: text('offer_url').notNull(),
   version: integer('version').notNull().default(1),
