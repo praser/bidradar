@@ -38,6 +38,7 @@ reconcile
     '-u, --uf <code>',
     'Brazilian state code (e.g. DF, SP, RJ)',
     parseUf,
+    'geral',
   )
   .action(async (opts: { uf?: string }) => {
     const spinner = ora()
