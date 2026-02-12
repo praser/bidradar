@@ -5,7 +5,9 @@
   "bin": {
     "bidradar": "./dist/bin/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
@@ -13,6 +15,7 @@
   },
   "dependencies": {
     "@bidradar/shared": "workspace:*",
+    "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
     "open": "^10.1.2",
     "ora": "^9.3.0",

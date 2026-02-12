@@ -3,6 +3,8 @@ import ora from 'ora'
 import type { z } from 'zod'
 import type { OffersResponseSchema } from '@bidradar/shared'
 import { apiRequest, ApiError } from '../lib/apiClient.js'
+import { renderTable } from '../lib/formatTable.js'
+import { displayWithPager } from '../lib/pager.js'
 
 type OffersResponse = z.infer<typeof OffersResponseSchema>
 
@@ -21,6 +23,8 @@ export const query = new Command('query')
   .option('-l, --page-size <n>', 'Rows per page', '50')
   .option('-p, --page <n>', 'Page number', '1')
   .option('-r, --include-removed', 'Include soft-deleted records', false)
+  .option('--columns <cols>', 'Comma-separated column names to display')
+  .option('--no-pager', 'Disable pager (less) for output')
   .action(
     async (opts: {
       uf?: string
@@ -32,6 +36,8 @@ export const query = new Command('query')
       pageSize: string
       page: string
       includeRemoved: boolean
+      columns?: string
+      pager: boolean
     }) => {
       const spinner = ora()
       try {
@@ -60,8 +66,13 @@ export const query = new Command('query')
           return
         }
 
-        console.log()
-        console.table(result.data)
+        const table = renderTable(result.data, opts.columns)
+
+        if (opts.pager) {
+          await displayWithPager(table)
+        } else {
+          console.log(table)
+        }
       } catch (err) {
         if (err instanceof ApiError && err.statusCode === 401) {
           spinner.fail(
