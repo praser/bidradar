@@ -1,36 +1,21 @@
 {
   "name": "bidradar",
   "version": "0.0.1-alpha",
-  "description": "",
+  "private": true,
   "type": "module",
-  "bin": { "bidradar": "./dist/bin/index.js" },
-  "files": ["dist"],
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "build": "tsup",
-    "dev": "tsx index.ts reconcile cef --uf DF",
+    "build": "pnpm -r build",
+    "dev:api": "pnpm --filter @bidradar/api dev",
+    "dev:cli": "pnpm --filter @bidradar/cli dev",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.28.2",
   "devDependencies": {
-    "@types/node": "^22.19.11",
     "drizzle-kit": "^0.31.9",
-    "tsup": "^8.5.1",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "commander": "^14.0.3",
-    "csv": "^6.4.1",
-    "drizzle-orm": "^0.45.1",
-    "ora": "^9.3.0",
-    "postgres": "^3.4.8",
-    "zod": "^4.3.6"
   }
 }

@@ -15,6 +15,13 @@
       "when": 1770837029483,
       "tag": "0001_polite_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770860387445,
+      "tag": "0002_bizarre_changeling",
+      "breakpoints": true
     }
   ]
 }

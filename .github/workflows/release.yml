@@ -7,9 +7,10 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  release:
+  release-cli:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,10 +24,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm --filter @bidradar/cli... build
 
       - name: Create tarball
-        run: tar -czf bidradar-${GITHUB_REF_NAME#v}.tar.gz dist package.json
+        run: |
+          cd packages/cli
+          tar -czf ../../bidradar-${GITHUB_REF_NAME#v}.tar.gz dist package.json
 
       - name: Create GitHub Release
         env:
@@ -56,3 +59,25 @@ jobs:
           git add Formula/bidradar.rb
           git commit -m "Update bidradar to ${VERSION}"
           git push
+
+  release-api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/praser/bidradar-api:${{ github.ref_name }}
+            ghcr.io/praser/bidradar-api:latest
