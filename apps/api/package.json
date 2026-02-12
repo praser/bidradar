@@ -1,0 +1,28 @@
+{
+  "name": "@bidradar/api",
+  "version": "0.0.1-alpha",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bidradar/api-contract": "workspace:*",
+    "@bidradar/cef": "workspace:*",
+    "@bidradar/core": "workspace:*",
+    "@bidradar/db": "workspace:*",
+    "@hono/node-server": "^1.14.1",
+    "drizzle-orm": "^0.45.1",
+    "google-auth-library": "^9.15.1",
+    "hono": "^4.7.6",
+    "jose": "^6.0.11",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

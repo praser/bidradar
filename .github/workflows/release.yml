@@ -28,7 +28,7 @@ jobs:
 
       - name: Create tarball
         run: |
-          cd packages/cli
+          cd apps/cli
           tar -czf ../../bidradar-${GITHUB_REF_NAME#v}.tar.gz dist package.json
 
       - name: Create GitHub Release
@@ -76,7 +76,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: packages/api/Dockerfile
+          file: apps/api/Dockerfile
           push: true
           tags: |
             ghcr.io/praser/bidradar-api:${{ github.ref_name }}

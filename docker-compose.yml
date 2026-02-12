@@ -13,7 +13,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: packages/api/Dockerfile
+      dockerfile: apps/api/Dockerfile
     ports:
       - '3000:3000'
     environment:
@@ -29,7 +29,7 @@ services:
   drizzle-studio:
     build:
       context: .
-      dockerfile: Dockerfile.studio
+      dockerfile: packages/db/Dockerfile.studio
     ports:
       - '4983:4983'
     environment:

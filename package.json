@@ -6,16 +6,15 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "build": "pnpm -r build",
-    "dev:api": "pnpm --filter @bidradar/shared build && pnpm --filter @bidradar/api dev",
+    "dev:api": "pnpm --filter @bidradar/api... build && pnpm --filter @bidradar/api dev",
     "dev:cli": "pnpm --filter @bidradar/cli dev",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:generate": "pnpm --filter @bidradar/db generate",
+    "db:migrate": "pnpm --filter @bidradar/db migrate",
+    "db:studio": "pnpm --filter @bidradar/db studio"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.9",
     "typescript": "^5.9.3"
   }
 }

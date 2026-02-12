@@ -1,0 +1,6 @@
+{
+  "name": "@bidradar/infra-supabase",
+  "version": "0.0.1-alpha",
+  "private": true,
+  "type": "module"
+}

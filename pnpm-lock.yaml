@@ -8,24 +8,27 @@ importers:
 
   .:
     devDependencies:
-      drizzle-kit:
-        specifier: ^0.31.9
-        version: 0.31.9
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/api:
+  apps/api:
     dependencies:
-      '@bidradar/shared':
+      '@bidradar/api-contract':
         specifier: workspace:*
-        version: link:../shared
+        version: link:../../packages/api-contract
+      '@bidradar/cef':
+        specifier: workspace:*
+        version: link:../../packages/cef
+      '@bidradar/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@bidradar/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@hono/node-server':
         specifier: ^1.14.1
         version: 1.19.9(hono@4.11.9)
-      csv:
-        specifier: ^6.4.1
-        version: 6.4.1
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(postgres@3.4.8)
@@ -38,9 +41,6 @@ importers:
       jose:
         specifier: ^6.0.11
         version: 6.1.3
-      postgres:
-        specifier: ^3.4.8
-        version: 3.4.8
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -55,11 +55,14 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/cli:
+  apps/cli:
     dependencies:
-      '@bidradar/shared':
+      '@bidradar/api-contract':
         specifier: workspace:*
-        version: link:../shared
+        version: link:../../packages/api-contract
+      '@bidradar/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       cli-table3:
         specifier: ^0.6.5
         version: 0.6.5
@@ -89,7 +92,46 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/shared:
+  infra/aws: {}
+
+  infra/supabase: {}
+
+  packages/api-contract:
+    dependencies:
+      '@bidradar/core':
+        specifier: workspace:*
+        version: link:../core
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.11
+        version: 22.19.11
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/cef:
+    dependencies:
+      '@bidradar/core':
+        specifier: workspace:*
+        version: link:../core
+      csv:
+        specifier: ^6.4.1
+        version: 6.4.1
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.11
+        version: 22.19.11
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/core:
     dependencies:
       zod:
         specifier: ^4.3.6
@@ -98,6 +140,28 @@ importers:
       '@types/node':
         specifier: ^22.19.11
         version: 22.19.11
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/db:
+    dependencies:
+      '@bidradar/core':
+        specifier: workspace:*
+        version: link:../core
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(postgres@3.4.8)
+      postgres:
+        specifier: ^3.4.8
+        version: 3.4.8
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.11
+        version: 22.19.11
+      drizzle-kit:
+        specifier: ^0.31.9
+        version: 0.31.9
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
