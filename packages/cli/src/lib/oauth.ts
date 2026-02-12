@@ -1,6 +1,7 @@
 import { createServer } from 'node:http'
 import open from 'open'
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? ''
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 
 interface OAuthResult {
@@ -8,7 +9,7 @@ interface OAuthResult {
   redirectUri: string
 }
 
-export function startOAuthFlow(googleClientId: string): Promise<OAuthResult> {
+export function startOAuthFlow(): Promise<OAuthResult> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost')
@@ -55,7 +56,7 @@ export function startOAuthFlow(googleClientId: string): Promise<OAuthResult> {
 
       const redirectUri = `http://localhost:${String(address.port)}`
       const authUrl = new URL(GOOGLE_AUTH_URL)
-      authUrl.searchParams.set('client_id', googleClientId)
+      authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID)
       authUrl.searchParams.set('redirect_uri', redirectUri)
       authUrl.searchParams.set('response_type', 'code')
       authUrl.searchParams.set('scope', 'openid email profile')

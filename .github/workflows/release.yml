@@ -25,6 +25,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm --filter @bidradar/cli... build
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
       - name: Create tarball
         run: |
