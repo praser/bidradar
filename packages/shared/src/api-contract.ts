@@ -2,16 +2,17 @@ import { z } from 'zod'
 import { OfferSchema } from './offer.js'
 import { AuthUserSchema } from './auth.js'
 
-// POST /auth/google
-export const GoogleAuthRequestSchema = z.object({
-  code: z.string(),
-  redirectUri: z.string().url(),
+// POST /auth/session
+export const AuthSessionResponseSchema = z.object({
+  sessionId: z.string().uuid(),
 })
 
-export const AuthResponseSchema = z.object({
+// GET /auth/token?session=X
+export const AuthTokenResponseSchema = z.object({
   token: z.string(),
   user: AuthUserSchema,
 })
+
 
 // GET /offers
 export const OffersQuerySchema = z.object({

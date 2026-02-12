@@ -9,11 +9,6 @@ export default defineConfig({
   bundle: true,
   noExternal: [/.*/],
   clean: true,
-  define: {
-    'process.env.GOOGLE_CLIENT_ID': JSON.stringify(
-      process.env.GOOGLE_CLIENT_ID ?? '',
-    ),
-  },
   banner: {
     js: [
       '#!/usr/bin/env node',
