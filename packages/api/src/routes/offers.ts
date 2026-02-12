@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
-import { OffersQuerySchema } from '@bidradar/shared'
+import { OffersQuerySchema, parseFilter, parseSort, FilterParseError } from '@bidradar/shared'
 import { getDb } from '../db/index.js'
 import { offers } from '../db/schema.js'
-import { eq, and, gte, lte, isNull, sql, asc, desc } from 'drizzle-orm'
+import { and, isNull, sql, asc, desc } from 'drizzle-orm'
 import type { AuthEnv } from '../middleware/authenticate.js'
+import { filterToDrizzle, SORT_COLUMN_MAP } from '../core/filterToDrizzle.js'
 
 export function offerRoutes() {
   const app = new Hono<AuthEnv>()
@@ -15,14 +16,22 @@ export function offerRoutes() {
 
     const conditions = []
     if (!query.includeRemoved) conditions.push(isNull(offers.removedAt))
-    if (query.uf) conditions.push(eq(offers.uf, query.uf.toUpperCase()))
-    if (query.city) conditions.push(eq(offers.city, query.city))
-    if (query.sellingType)
-      conditions.push(eq(offers.sellingType, query.sellingType))
-    if (query.minPrice !== undefined)
-      conditions.push(gte(offers.askingPrice, String(query.minPrice)))
-    if (query.maxPrice !== undefined)
-      conditions.push(lte(offers.askingPrice, String(query.maxPrice)))
+
+    if (query.filter) {
+      let ast
+      try {
+        ast = parseFilter(query.filter)
+      } catch (err) {
+        if (err instanceof FilterParseError) {
+          return c.json(
+            { error: 'INVALID_FILTER', message: err.message, statusCode: 400 },
+            400,
+          )
+        }
+        throw err
+      }
+      conditions.push(filterToDrizzle(ast))
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -34,17 +43,25 @@ export function offerRoutes() {
 
     const offset = (query.page - 1) * query.pageSize
 
+    let sortClause
+    try {
+      sortClause = parseSort(query.sort)
+    } catch (err) {
+      return c.json(
+        { error: 'INVALID_SORT', message: (err as Error).message, statusCode: 400 },
+        400,
+      )
+    }
+    const sortCol = SORT_COLUMN_MAP[sortClause.field]
+    const orderBy = sortClause.direction === 'asc' ? asc(sortCol) : desc(sortCol)
+
     const rows = await db
       .select()
       .from(offers)
       .where(where)
       .limit(query.pageSize)
       .offset(offset)
-      .orderBy(
-        query.sort === 'price_asc'
-          ? asc(offers.askingPrice)
-          : desc(offers.updatedAt),
-      )
+      .orderBy(orderBy)
 
     const data = rows.map((row) => ({
       id: row.sourceId,

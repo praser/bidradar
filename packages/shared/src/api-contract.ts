@@ -1,6 +1,26 @@
 import { z } from 'zod'
 import { OfferSchema } from './offer.js'
 import { AuthUserSchema } from './auth.js'
+import { SORTABLE_FIELDS, type SortClause } from './filter/types.js'
+
+const SORTABLE_SET = new Set<string>(SORTABLE_FIELDS)
+
+export function parseSort(input: string): SortClause {
+  const parts = input.split(':')
+  const field = parts[0]!
+  const direction = parts[1] ?? 'asc'
+
+  if (!SORTABLE_SET.has(field)) {
+    throw new Error(
+      `Unknown sort field '${field}'. Valid fields: ${SORTABLE_FIELDS.join(', ')}`,
+    )
+  }
+  if (direction !== 'asc' && direction !== 'desc') {
+    throw new Error(`Invalid sort direction '${direction}'. Use 'asc' or 'desc'`)
+  }
+
+  return { field: field as SortClause['field'], direction }
+}
 
 // POST /auth/session
 export const AuthSessionResponseSchema = z.object({
@@ -16,15 +36,11 @@ export const AuthTokenResponseSchema = z.object({
 
 // GET /offers
 export const OffersQuerySchema = z.object({
-  uf: z.string().optional(),
-  city: z.string().optional(),
-  sellingType: z.string().optional(),
-  minPrice: z.coerce.number().optional(),
-  maxPrice: z.coerce.number().optional(),
+  filter: z.string().max(2000).optional(),
   includeRemoved: z.coerce.boolean().optional().default(false),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(1000).optional().default(50),
-  sort: z.string().optional(),
+  sort: z.string().default('updatedAt:desc'),
 })
 
 export const OffersResponseSchema = z.object({
