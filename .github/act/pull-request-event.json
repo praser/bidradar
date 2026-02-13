@@ -1,0 +1,13 @@
+{
+  "pull_request": {
+    "head": {
+      "ref": "feature-branch",
+      "repo": {
+        "full_name": "praser/bidradar"
+      }
+    },
+    "base": {
+      "ref": "main"
+    }
+  }
+}
