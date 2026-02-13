@@ -1,5 +1,6 @@
 import {
   boolean,
+  jsonb,
   pgTable,
   text,
   uuid,
@@ -72,3 +73,13 @@ export const propertyDetails = pgTable('property_details', {
 
 export type PropertyDetailsRow = typeof propertyDetails.$inferSelect
 export type PropertyDetailsInsert = typeof propertyDetails.$inferInsert
+
+export const authSessions = pgTable('auth_sessions', {
+  id: text('id').primaryKey(),
+  result: jsonb('result'),
+  error: text('error'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})

@@ -13,4 +13,8 @@ export {
 export { createOfferRepository } from './offer-repository.js'
 export { createUserRepository } from './user-repository.js'
 export { createPropertyDetailsRepository } from './property-details-repository.js'
+export {
+  createAuthSessionRepository,
+  type AuthSession,
+} from './auth-session-repository.js'
 export { filterToDrizzle, SORT_COLUMN_MAP } from './filter-to-drizzle.js'

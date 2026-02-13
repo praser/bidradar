@@ -43,6 +43,13 @@
       "when": 1770871164488,
       "tag": "0005_petite_post",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770950061273,
+      "tag": "0006_adorable_thing",
+      "breakpoints": true
     }
   ]
 }

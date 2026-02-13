@@ -2,17 +2,8 @@ import { Hono } from 'hono'
 import { OAuth2Client } from 'google-auth-library'
 import * as jose from 'jose'
 import { randomUUID } from 'node:crypto'
-import { createUserRepository } from '@bidradar/db'
+import { createUserRepository, createAuthSessionRepository } from '@bidradar/db'
 import type { Env } from '../env.js'
-
-interface PendingSession {
-  createdAt: number
-  result?: {
-    token: string
-    user: { id: string; email: string; name: string; role: string }
-  }
-  error?: string
-}
 
 const SESSION_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -23,29 +14,26 @@ export function authRoutes(env: Env) {
     env.GOOGLE_CLIENT_SECRET,
   )
   const secret = new TextEncoder().encode(env.JWT_SECRET)
-  const sessions = new Map<string, PendingSession>()
-
-  function cleanExpiredSessions() {
-    const now = Date.now()
-    for (const [id, session] of sessions) {
-      if (now - session.createdAt > SESSION_TTL_MS) {
-        sessions.delete(id)
-      }
-    }
-  }
+  const sessionRepo = createAuthSessionRepository()
 
   // POST /auth/session — CLI requests a login session
   app.post('/session', async (c) => {
-    cleanExpiredSessions()
+    await sessionRepo.cleanExpired()
     const sessionId = randomUUID()
-    sessions.set(sessionId, { createdAt: Date.now() })
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+    await sessionRepo.create(sessionId, expiresAt)
     return c.json({ sessionId })
   })
 
   // GET /auth/login — browser is directed here, redirects to Google
   app.get('/login', async (c) => {
     const sessionId = c.req.query('session')
-    if (!sessionId || !sessions.has(sessionId)) {
+    if (!sessionId) {
+      return c.text('Invalid or expired session', 400)
+    }
+
+    const session = await sessionRepo.find(sessionId)
+    if (!session) {
       return c.text('Invalid or expired session', 400)
     }
 
@@ -69,8 +57,8 @@ export function authRoutes(env: Env) {
 
     if (error) {
       if (state) {
-        const session = sessions.get(state)
-        if (session) session.error = error
+        const session = await sessionRepo.find(state)
+        if (session) await sessionRepo.setError(state, error)
       }
       return c.html(
         '<html><body><h1>Authentication failed</h1><p>You can close this tab.</p></body></html>',
@@ -81,7 +69,7 @@ export function authRoutes(env: Env) {
       return c.text('Missing code or state', 400)
     }
 
-    const session = sessions.get(state)
+    const session = await sessionRepo.find(state)
     if (!session) {
       return c.text('Invalid or expired session', 400)
     }
@@ -97,7 +85,7 @@ export function authRoutes(env: Env) {
 
       const idToken = tokens.id_token
       if (!idToken) {
-        session.error = 'Failed to obtain ID token from Google'
+        await sessionRepo.setError(state, 'Failed to obtain ID token from Google')
         return c.html(
           '<html><body><h1>Authentication failed</h1><p>You can close this tab.</p></body></html>',
         )
@@ -110,21 +98,21 @@ export function authRoutes(env: Env) {
 
       const googlePayload = ticket.getPayload()
       if (!googlePayload?.sub || !googlePayload.email) {
-        session.error = 'Invalid Google token payload'
+        await sessionRepo.setError(state, 'Invalid Google token payload')
         return c.html(
           '<html><body><h1>Authentication failed</h1><p>You can close this tab.</p></body></html>',
         )
       }
 
-      const repo = createUserRepository()
-      let user = await repo.findByGoogleId(googlePayload.sub)
+      const userRepo = createUserRepository()
+      let user = await userRepo.findByGoogleId(googlePayload.sub)
 
       if (!user) {
         const role = env.ADMIN_EMAILS.includes(googlePayload.email)
           ? ('admin' as const)
           : ('free' as const)
 
-        user = await repo.createUser({
+        user = await userRepo.createUser({
           email: googlePayload.email,
           name: googlePayload.name ?? googlePayload.email,
           googleId: googlePayload.sub,
@@ -143,7 +131,7 @@ export function authRoutes(env: Env) {
         .setExpirationTime('7d')
         .sign(secret)
 
-      session.result = {
+      await sessionRepo.setResult(state, {
         token,
         user: {
           id: user.id,
@@ -151,14 +139,16 @@ export function authRoutes(env: Env) {
           name: user.name,
           role: user.role,
         },
-      }
+      })
 
       return c.html(
         '<html><body><h1>Authentication successful!</h1><p>You can close this tab and return to the terminal.</p></body></html>',
       )
     } catch (err) {
-      session.error =
-        err instanceof Error ? err.message : 'Authentication failed'
+      await sessionRepo.setError(
+        state,
+        err instanceof Error ? err.message : 'Authentication failed',
+      )
       return c.html(
         '<html><body><h1>Authentication failed</h1><p>You can close this tab.</p></body></html>',
       )
@@ -175,7 +165,7 @@ export function authRoutes(env: Env) {
       )
     }
 
-    const session = sessions.get(sessionId)
+    const session = await sessionRepo.find(sessionId)
     if (!session) {
       return c.json(
         { error: 'NOT_FOUND', message: 'Invalid or expired session', statusCode: 404 },
@@ -184,7 +174,7 @@ export function authRoutes(env: Env) {
     }
 
     if (session.error) {
-      sessions.delete(sessionId)
+      await sessionRepo.delete(sessionId)
       return c.json(
         { error: 'UNAUTHORIZED', message: session.error, statusCode: 401 },
         401,
@@ -192,7 +182,7 @@ export function authRoutes(env: Env) {
     }
 
     if (session.result) {
-      sessions.delete(sessionId)
+      await sessionRepo.delete(sessionId)
       return c.json(session.result)
     }
 
