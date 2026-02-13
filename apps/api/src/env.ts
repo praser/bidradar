@@ -18,10 +18,6 @@ const envSchema = z.object({
     .string()
     .default('')
     .transform((s) => (s.length > 0 ? s.split(',').map((e) => e.trim()) : [])),
-  ALLOWED_ORIGINS: z
-    .string()
-    .default('http://localhost:3000')
-    .transform((s) => s.split(',').map((o) => o.trim())),
 })
 
 export type Env = z.infer<typeof envSchema>

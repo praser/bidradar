@@ -130,6 +130,7 @@ pnpm dev:cli -- reconcile cef --uf DF
 - Auth: Google OAuth -> HS256 JWT, verified via `jose`
 - Middleware stack: `cors` -> `logger` -> `authenticate` (JWT) -> `authorize` (role check)
 - Error responses follow `{ error: string, message: string, statusCode: number }` shape
+- **CORS: The only API client is the CLI (runs on users' local machines, not a browser). CORS is irrelevant — never add CORS origin restrictions or `ALLOWED_ORIGINS` config. Keep `cors()` with no arguments. The API is protected by JWT auth, not CORS.**
 
 ### CLI
 
@@ -179,6 +180,7 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 
 - **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
 - **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret
+- **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- build + typecheck on push/PR to main
 - **Release**: Tag-triggered workflow -- CLI tarball + GitHub Release + Homebrew tap update + GHCR Docker image
 

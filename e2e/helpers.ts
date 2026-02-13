@@ -13,7 +13,6 @@ export const TEST_ENV: Env = {
   GOOGLE_CLIENT_ID: 'test-google-client-id',
   GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
   ADMIN_EMAILS: ['admin@test.com'],
-  ALLOWED_ORIGINS: ['http://localhost:3000'],
 }
 
 export function getTestApp() {

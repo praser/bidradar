@@ -4,7 +4,6 @@ const secrets = {
   GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId"),
   GOOGLE_CLIENT_SECRET: new sst.Secret("GoogleClientSecret"),
   ADMIN_EMAILS: new sst.Secret("AdminEmails"),
-  ALLOWED_ORIGINS: new sst.Secret("AllowedOrigins"),
 };
 
 const api = new sst.aws.Function("Api", {
@@ -18,8 +17,17 @@ const api = new sst.aws.Function("Api", {
     GOOGLE_CLIENT_ID: secrets.GOOGLE_CLIENT_ID.value,
     GOOGLE_CLIENT_SECRET: secrets.GOOGLE_CLIENT_SECRET.value,
     ADMIN_EMAILS: secrets.ADMIN_EMAILS.value,
-    ALLOWED_ORIGINS: secrets.ALLOWED_ORIGINS.value,
   },
+});
+
+// Required for the Lambda function URL to accept public HTTP requests.
+// SST creates the function URL with AuthorizationType=NONE but does not add the
+// resource-based policy. Without this permission the URL returns 403 Forbidden.
+// DO NOT REMOVE — see CLAUDE.md for details.
+new aws.lambda.Permission("ApiPublicInvoke", {
+  function: api.name,
+  action: "lambda:InvokeFunction",
+  principal: "*",
 });
 
 export const apiUrl = api.url;
