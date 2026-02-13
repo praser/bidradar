@@ -1,9 +1,11 @@
+/// <reference path="../../.sst/platform/config.d.ts" />
+
 const secrets = {
-  DATABASE_URL: new sst.Secret("DatabaseUrl"),
-  JWT_SECRET: new sst.Secret("JwtSecret"),
-  GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId"),
-  GOOGLE_CLIENT_SECRET: new sst.Secret("GoogleClientSecret"),
-  ADMIN_EMAILS: new sst.Secret("AdminEmails"),
+  DATABASE_URL: new sst.Secret("DatabaseUrl", process.env.DATABASE_URL),
+  JWT_SECRET: new sst.Secret("JwtSecret", process.env.JWT_SECRET),
+  GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId", process.env.GOOGLE_CLIENT_ID),
+  GOOGLE_CLIENT_SECRET: new sst.Secret("GoogleClientSecret", process.env.GOOGLE_CLIENT_SECRET),
+  ADMIN_EMAILS: new sst.Secret("AdminEmails", process.env.ADMIN_EMAILS),
 };
 
 const api = new sst.aws.Function("Api", {
