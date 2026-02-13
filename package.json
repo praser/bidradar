@@ -1,6 +1,6 @@
 {
   "name": "bidradar",
-  "version": "0.0.1-alpha",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.28.2",
@@ -17,7 +17,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.config.e2e.ts",
-    "test:e2e:live": "vitest run --config vitest.config.e2e.live.ts"
+    "test:e2e:live": "vitest run --config vitest.config.e2e.live.ts",
+    "act:ci": "act pull_request -W .github/workflows/ci.yml --secret-file .env -e .github/act/pull-request-event.json",
+    "act:release": "act push -W .github/workflows/release.yml --secret-file .env --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY --secret AWS_SESSION_TOKEN --secret AWS_REGION"
   },
   "devDependencies": {
     "@hono/node-server": "^1.19.9",
