@@ -11,6 +11,8 @@ const secrets = {
 const api = new sst.aws.Function("Api", {
   handler: "apps/api/src/lambda.handler",
   runtime: "nodejs22.x",
+  timeout: "3 minutes",
+  memory: "512 MB",
   url: true,
   link: Object.values(secrets),
   environment: {
