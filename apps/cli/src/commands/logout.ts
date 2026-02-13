@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import ora from 'ora'
-import { saveConfig } from '../lib/config.js'
+import { clearToken } from '../lib/config.js'
 
 export const logout = new Command('logout')
   .description('Log out and clear stored credentials')
@@ -8,7 +8,7 @@ export const logout = new Command('logout')
     const spinner = ora()
     try {
       spinner.start('Logging out...')
-      await saveConfig({ token: undefined })
+      await clearToken()
       spinner.succeed('Logged out successfully')
     } catch (err) {
       spinner.fail(

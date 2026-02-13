@@ -35,35 +35,28 @@ export function reconcileRoutes() {
     const { source } = ReconcileParamsSchema.parse(c.req.param())
     const { uf } = ReconcileQuerySchema.parse(c.req.query())
 
-    if (source === 'cef') {
-      c.header('Content-Type', 'application/x-ndjson')
-      return stream(c, async (s) => {
-        try {
-          const csvStream = await downloadFile(uf)
-          const offers = await parseOffers(csvStream)
-          await s.write(JSON.stringify({ type: 'start', total: offers.length }) + '\n')
+    switch (source) {
+      case 'cef': {
+        c.header('Content-Type', 'application/x-ndjson')
+        return stream(c, async (s) => {
+          try {
+            const csvStream = await downloadFile(uf)
+            const offers = await parseOffers(csvStream)
+            await s.write(JSON.stringify({ type: 'start', total: offers.length }) + '\n')
 
-          const repo = createOfferRepository()
-          const result = await reconcileOffers(uf ?? 'geral', offers, repo, (step) => {
-            void s.write(JSON.stringify(stepToEvent(step)) + '\n')
-          })
+            const repo = createOfferRepository()
+            const result = await reconcileOffers(uf ?? 'geral', offers, repo, (step) => {
+              void s.write(JSON.stringify(stepToEvent(step)) + '\n')
+            })
 
-          await s.write(JSON.stringify({ type: 'done', ...result }) + '\n')
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown error'
-          await s.write(JSON.stringify({ type: 'error', message }) + '\n')
-        }
-      })
+            await s.write(JSON.stringify({ type: 'done', ...result }) + '\n')
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            await s.write(JSON.stringify({ type: 'error', message }) + '\n')
+          }
+        })
+      }
     }
-
-    return c.json(
-      {
-        error: 'NOT_FOUND',
-        message: `Unknown source: ${source}`,
-        statusCode: 404,
-      },
-      404,
-    )
   })
 
   return app

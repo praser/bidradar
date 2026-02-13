@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { z } from 'zod'
@@ -6,8 +6,10 @@ import { z } from 'zod'
 const CONFIG_DIR = join(homedir(), '.bidradar')
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
 
+const DEFAULT_API_URL = process.env.BIDRADAR_DEFAULT_API_URL ?? 'http://localhost:3000'
+
 const ConfigSchema = z.object({
-  apiUrl: z.string().url().default('http://localhost:3000'),
+  apiUrl: z.string().url().default(DEFAULT_API_URL),
   token: z.string().optional(),
 })
 
@@ -25,8 +27,17 @@ export async function loadConfig(): Promise<Config> {
 export async function saveConfig(config: Partial<Config>): Promise<void> {
   const current = await loadConfig()
   const merged = { ...current, ...config }
-  await mkdir(CONFIG_DIR, { recursive: true })
-  await writeFile(CONFIG_FILE, JSON.stringify(merged, null, 2))
+  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  await writeFile(CONFIG_FILE, JSON.stringify(merged, null, 2), { mode: 0o600 })
+  await chmod(CONFIG_FILE, 0o600)
+}
+
+export async function clearToken(): Promise<void> {
+  const current = await loadConfig()
+  const { token: _, ...rest } = current
+  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  await writeFile(CONFIG_FILE, JSON.stringify(rest, null, 2), { mode: 0o600 })
+  await chmod(CONFIG_FILE, 0o600)
 }
 
 export async function getToken(): Promise<string | undefined> {

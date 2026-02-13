@@ -54,8 +54,11 @@ export function filterToDrizzle(node: FilterNode): SQL {
         case 'contains': return ilike(col, `%${escapeLike(val as string)}%`)
         case 'startswith': return ilike(col, `${escapeLike(val as string)}%`)
         case 'endswith': return ilike(col, `%${escapeLike(val as string)}`)
+        default: {
+          const _exhaustive: never = node.operator
+          throw new Error(`Unknown operator: ${String(_exhaustive)}`)
+        }
       }
-      break
     }
     case 'in': {
       const col = COLUMN_MAP[node.field]

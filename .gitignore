@@ -3,3 +3,7 @@ dist/
 .input/
 .output/
 .env
+.sst/
+sst-env.d.ts
+.DS_Store
+.claude/

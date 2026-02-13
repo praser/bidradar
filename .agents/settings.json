@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm build)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm --filter *)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm db:*)",
+      "Bash(docker compose *)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test*)",
+      "Bash(tsx *)",
+      "Bash(npx sst *)",
+      "Bash(gh run *)",
+      "Bash(gh release *)",
+      "Bash(git tag *)"
+    ]
+  }
+}

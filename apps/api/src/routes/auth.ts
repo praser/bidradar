@@ -128,6 +128,7 @@ export function authRoutes(env: Env) {
       })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
+        .setIssuer('bidradar')
         .setExpirationTime('7d')
         .sign(secret)
 

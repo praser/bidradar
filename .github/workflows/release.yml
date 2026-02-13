@@ -2,16 +2,74 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+
+# Prevent release commits from re-triggering the pipeline.
+# The "chore(release): v*" commit pushed by the release job uses GITHUB_TOKEN,
+# which does not trigger workflows by default. This concurrency group is a
+# safety net in case a PAT is used instead.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
   packages: write
+  issues: write
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
 
 jobs:
-  release-cli:
+  # ---------------------------------------------------------------------------
+  # 1. Determine version bump from conventional commits
+  # ---------------------------------------------------------------------------
+  version:
+    name: Determine Version
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      skip: ${{ steps.bump.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Determine semver bump from conventional commits
+        id: bump
+        run: |
+          # Skip if the triggering commit is a release commit (prevents loops)
+          HEAD_MSG=$(git log -1 --pretty=format:"%s")
+          if echo "$HEAD_MSG" | grep -qE "^chore\(release\): v"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Head commit is a release commit — skipping"
+            exit 0
+          fi
+
+          # Dry-run: get the next version without writing files
+          VERSION=$(node scripts/bump-version.mjs --dry)
+          if [ -z "$VERSION" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Could not determine version — skipping"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2. Static checks + unit tests
+  # ---------------------------------------------------------------------------
+  checks:
+    name: Static Checks & Tests
+    runs-on: ubuntu-latest
+    needs: version
+    if: needs.version.outputs.skip != 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -24,29 +82,219 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @bidradar/cli... build
+      - run: pnpm build
 
-      - name: Create tarball
+      - run: pnpm typecheck
+
+      - run: pnpm test --passWithNoTests
+
+  # ---------------------------------------------------------------------------
+  # 3. Deploy to dev Lambda via SST
+  # ---------------------------------------------------------------------------
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [version, checks]
+    if: needs.version.outputs.skip != 'true'
+    outputs:
+      dev_api_url: ${{ steps.deploy.outputs.dev_api_url }}
+      lambda_name: ${{ steps.deploy.outputs.lambda_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy with SST
+        id: deploy
+        run: |
+          npx sst deploy --stage production 2>&1 | tee /tmp/sst-deploy.log
+
+          # Read outputs from SST state
+          DEV_URL=$(npx sst shell --stage production -- \
+            node -e "console.log(process.env.devApiUrl || '')" 2>/dev/null || true)
+          LAMBDA_NAME=$(npx sst shell --stage production -- \
+            node -e "console.log(process.env.apiName || '')" 2>/dev/null || true)
+
+          # Fallback: query AWS directly for the function URL
+          if [ -z "$DEV_URL" ]; then
+            if [ -n "$LAMBDA_NAME" ]; then
+              DEV_URL=$(aws lambda get-function-url-config \
+                --function-name "$LAMBDA_NAME" \
+                --qualifier dev \
+                --query 'FunctionUrl' --output text 2>/dev/null || true)
+            fi
+          fi
+
+          echo "dev_api_url=$DEV_URL" >> "$GITHUB_OUTPUT"
+          echo "lambda_name=$LAMBDA_NAME" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 4. E2E tests against dev Lambda
+  # ---------------------------------------------------------------------------
+  e2e-dev:
+    name: E2E Tests (Dev)
+    runs-on: ubuntu-latest
+    needs: [version, deploy-dev]
+    if: needs.version.outputs.skip != 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Run E2E tests against dev
+        env:
+          DEV_API_URL: ${{ needs.deploy-dev.outputs.dev_api_url }}
+        run: pnpm test:e2e:live
+
+  # ---------------------------------------------------------------------------
+  # 5. Release — tag, promote prod, CLI, Homebrew, Docker
+  # ---------------------------------------------------------------------------
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [version, deploy-dev, e2e-dev]
+    if: needs.version.outputs.skip != 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --- Bump versions in all package.json files ---
+      - name: Bump versions
+        run: node scripts/bump-version.mjs
+
+      # --- Generate / update CHANGELOG.md ---
+      - name: Update CHANGELOG
+        env:
+          VERSION: ${{ needs.version.outputs.new_version }}
+        run: node scripts/generate-changelog.mjs --version "$VERSION"
+
+      # --- Commit version bumps + changelog ---
+      - name: Commit version bump and changelog
+        env:
+          VERSION: ${{ needs.version.outputs.new_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json packages/*/package.json apps/*/package.json CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}"
+          git push
+
+      # --- Tag the release ---
+      - name: Create tag
+        env:
+          VERSION: ${{ needs.version.outputs.new_version }}
+        run: |
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      # --- Promote Lambda to prod ---
+      - name: Publish Lambda version and promote prod alias
+        env:
+          LAMBDA_NAME: ${{ needs.deploy-dev.outputs.lambda_name }}
+        run: |
+          # Publish a new version from $LATEST
+          PUBLISHED=$(aws lambda publish-version \
+            --function-name "$LAMBDA_NAME" \
+            --query 'Version' --output text)
+          echo "Published Lambda version: $PUBLISHED"
+
+          # Update prod alias to point to the published version
+          aws lambda update-alias \
+            --function-name "$LAMBDA_NAME" \
+            --name prod \
+            --function-version "$PUBLISHED"
+          echo "Promoted prod alias to version $PUBLISHED"
+
+      # --- Get prod URL for CLI build ---
+      - name: Get prod API URL
+        id: prod_url
+        env:
+          LAMBDA_NAME: ${{ needs.deploy-dev.outputs.lambda_name }}
+        run: |
+          PROD_URL=$(aws lambda get-function-url-config \
+            --function-name "$LAMBDA_NAME" \
+            --qualifier prod \
+            --query 'FunctionUrl' --output text)
+          echo "prod_api_url=$PROD_URL" >> "$GITHUB_OUTPUT"
+
+      # --- Build all packages ---
+      - run: pnpm build
+
+      # --- Build CLI with prod URL baked in ---
+      - name: Build CLI for release
+        env:
+          BIDRADAR_DEFAULT_API_URL: ${{ steps.prod_url.outputs.prod_api_url }}
+        run: pnpm --filter @bidradar/cli build
+
+      # --- Create CLI tarball ---
+      - name: Create CLI tarball
+        env:
+          VERSION: ${{ needs.version.outputs.new_version }}
         run: |
           cd apps/cli
-          tar -czf ../../bidradar-${GITHUB_REF_NAME#v}.tar.gz dist package.json
+          tar -czf "../../bidradar-${VERSION}.tar.gz" dist package.json
 
+      # --- Create GitHub Release ---
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.new_version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            "bidradar-${GITHUB_REF_NAME#v}.tar.gz"
+          # Extract just the latest changelog entry (from first ## to next ## or EOF)
+          awk '/^## \[/{if(found) exit; found=1} found{print}' CHANGELOG.md > /tmp/release-notes.md
 
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file /tmp/release-notes.md \
+            "bidradar-${VERSION}.tar.gz"
+
+      # --- Update Homebrew formula ---
       - name: Update Homebrew formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.version.outputs.new_version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           SHA256=$(sha256sum "bidradar-${VERSION}.tar.gz" | cut -d ' ' -f 1)
-          URL="https://github.com/praser/bidradar/releases/download/${GITHUB_REF_NAME}/bidradar-${VERSION}.tar.gz"
+          URL="https://github.com/praser/bidradar/releases/download/v${VERSION}/bidradar-${VERSION}.tar.gz"
 
           git clone "https://x-access-token:${GH_TOKEN}@github.com/praser/homebrew-bidradar.git" /tmp/homebrew-bidradar
 
@@ -60,11 +308,7 @@ jobs:
           git commit -m "Update bidradar to ${VERSION}"
           git push
 
-  release-api-image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
+      # --- Build and push Docker image ---
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -79,5 +323,62 @@ jobs:
           file: apps/api/Dockerfile
           push: true
           tags: |
-            ghcr.io/praser/bidradar-api:${{ github.ref_name }}
+            ghcr.io/praser/bidradar-api:${{ needs.version.outputs.new_version }}
             ghcr.io/praser/bidradar-api:latest
+
+  # ---------------------------------------------------------------------------
+  # 6. On failure — create GitHub issue
+  # ---------------------------------------------------------------------------
+  on-failure:
+    name: Report Failure
+    runs-on: ubuntu-latest
+    needs: [version, checks, deploy-dev, e2e-dev, release]
+    if: failure() && needs.version.outputs.skip != 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine failed step
+        id: failed
+        run: |
+          if [ "${{ needs.checks.result }}" = "failure" ]; then
+            echo "step=Static Checks & Tests" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.deploy-dev.result }}" = "failure" ]; then
+            echo "step=Deploy to Dev" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.e2e-dev.result }}" = "failure" ]; then
+            echo "step=E2E Tests (Dev)" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.release.result }}" = "failure" ]; then
+            echo "step=Release" >> "$GITHUB_OUTPUT"
+          else
+            echo "step=Unknown" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_STEP: ${{ steps.failed.outputs.step }}
+          VERSION: ${{ needs.version.outputs.new_version }}
+        run: |
+          BODY="## Release Pipeline Failure
+
+          | Field | Value |
+          |-------|-------|
+          | **Failed Step** | ${FAILED_STEP} |
+          | **Target Version** | v${VERSION} |
+          | **Commit SHA** | ${{ github.sha }} |
+          | **Workflow Run** | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+          | **Triggered By** | ${{ github.actor }} |
+
+          ### What happened
+
+          The automated release pipeline failed during the **${FAILED_STEP}** step.
+
+          ### Next steps
+
+          1. Click the workflow run link above to inspect the error logs
+          2. Fix the underlying issue
+          3. Push to main to trigger a new release attempt"
+
+          gh issue create \
+            --title "Release v${VERSION} failed at: ${FAILED_STEP}" \
+            --label "bug,release" \
+            --body "$BODY"

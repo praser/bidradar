@@ -1,154 +1,272 @@
-# CLAUDE.md
+# Bidradar
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Bidradar scrapes real estate auction offers from Caixa Econômica Federal (CEF), parses CSV data, and persists them to PostgreSQL with change tracking (versioning, soft deletes, last-seen timestamps). The project is a pnpm monorepo with a clean architecture: pure domain core, pluggable infrastructure adapters, and thin application shells.
-
-## Commands
-
-```bash
-pnpm install              # Install all workspace dependencies
-pnpm build                # Build all packages
-pnpm dev:api              # Run API server in dev mode (tsx watch)
-pnpm dev:cli              # Run CLI in dev mode (tsx)
-pnpm db:up                # Start PostgreSQL + Drizzle Studio via Docker
-pnpm db:down              # Stop Docker services
-pnpm db:generate          # Generate Drizzle migrations from schema changes
-pnpm db:migrate           # Apply pending migrations
-pnpm db:studio            # Open Drizzle Studio UI (port 4983)
-```
-
-No test framework is configured yet.
+Bidradar is a real estate offer aggregator that scrapes public listings from Brazilian government auctions (CEF/Caixa Economica Federal), reconciles them into a PostgreSQL database, and exposes them through a REST API with a CLI client.
 
 ## Architecture
 
-**Monorepo structure** with four library packages and two application packages:
+pnpm monorepo with 4 library packages, 2 apps, and 1 infra package.
 
-**Library packages** (`packages/`):
-- **@bidradar/core** (`packages/core/`) — Pure domain: types, Zod schemas, business logic, filter parser. Zero workspace deps (only `zod`).
-- **@bidradar/api-contract** (`packages/api-contract/`) — HTTP request/response Zod schemas, sort parser. Depends on `core`.
-- **@bidradar/db** (`packages/db/`) — Drizzle ORM adapter: schema, connection, repository implementations, filter-to-SQL compiler. Depends on `core`.
-- **@bidradar/cef** (`packages/cef/`) — CEF data source adapter: CSV download, Latin-1 decode, Zod validation. Depends on `core`.
-
-**Application packages** (`apps/`):
-- **@bidradar/api** (`apps/api/`) — Hono REST API composing all library packages. Handles auth, offers querying, and reconciliation.
-- **@bidradar/cli** (`apps/cli/`) — Thin Commander-based CLI client. Communicates with the API via HTTP. Depends on `core` + `api-contract`.
-
-**Infrastructure** (`infra/`):
-- **@bidradar/infra-aws** (`infra/aws/`) — Future AWS CDK deployment (placeholder)
-- **@bidradar/infra-supabase** (`infra/supabase/`) — Future Supabase config (placeholder)
-
-**Dependency direction:**
-```
-            packages/core         <- zero workspace deps
-           /      |       \
-  api-contract   db       cef    <- each depends on core only
-       \        / |      /
-        apps/api  (all pkgs)     <- composes everything
-        apps/cli  (core + api-contract)
-```
-
-**Data flow:** CEF CSV endpoint -> API (HTTP download -> Latin-1->UTF-8 -> CSV parsing -> Zod validation -> Drizzle ORM -> PostgreSQL) -> CLI (HTTP client)
-
-### Source Layout
+### Dependency graph
 
 ```
-packages/
-  core/src/
-    offer.ts              — Offer interface + OfferSchema
-    auth.ts               — Role enum, AuthUser type + schemas
-    user.ts               — User domain interface
-    property-details.ts   — PropertyDetails interface
-    parse-description.ts  — parseDescription() pure function
-    offer-repository.ts   — OfferRepository interface
-    user-repository.ts    — UserRepository interface
-    reconcile-offers.ts   — reconcileOffers() business logic
-    filter/               — Filter AST types, tokenizer, parser
-    index.ts              — Barrel export
+apps/api ──> @bidradar/core
+         ──> @bidradar/api-contract
+         ──> @bidradar/db
+         ──> @bidradar/cef
 
-  api-contract/src/
-    api-contract.ts       — All endpoint Zod schemas + parseSort()
-    index.ts
+apps/cli ──> @bidradar/core
+         ──> @bidradar/api-contract
 
-  db/src/
-    schema.ts             — PostgreSQL schema (offers, users, propertyDetails)
-    connection.ts         — getDb(), closeDb(), getRawClient()
-    offer-repository.ts   — OfferRepository Drizzle implementation
-    user-repository.ts    — UserRepository Drizzle implementation
-    property-details-repository.ts
-    filter-to-drizzle.ts  — FilterNode AST -> Drizzle SQL compiler
-    index.ts
-    drizzle.config.ts     — Drizzle Kit configuration
-    drizzle/              — Generated migrations
-
-  cef/src/
-    downloader.ts         — CSV download (Latin-1 -> UTF-8)
-    CefOffer.ts           — Zod schema + transform for CSV rows
-    index.ts              — parseOffers(), downloadFile()
-
-apps/
-  api/src/
-    index.ts              — Server entry point (@hono/node-server)
-    app.ts                — Hono app factory composing routes + middleware
-    env.ts                — Zod-validated environment config
-    routes/               — API routes (auth, offers, reconcile, users)
-    middleware/            — JWT authentication, role authorization, error handler
-    scripts/              — backfillPropertyDetails
-
-  cli/src/
-    index.ts              — Commander setup
-    commands/             — login, logout, reconcile, query, whoami
-    lib/                  — API client, config storage (~/.bidradar/), pager, table formatter
+packages/api-contract ──> @bidradar/core
+packages/db           ──> @bidradar/core
+packages/cef          ──> @bidradar/core
+packages/core         ──> (no workspace deps, only zod)
 ```
 
-### Key Conventions
+### Package responsibilities
 
-- **ES Modules** throughout (`"type": "module"` in package.json); use `.js` extensions in imports even for `.ts` files
-- **Strict TypeScript** with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` enabled
-- **Zod v4** for runtime validation at data boundaries
-- **Drizzle ORM** with postgres-js driver; schema + config + migrations all in `packages/db/`
-- **Hono** as the API framework with `@hono/node-server`
-- **jose** for JWT creation/verification (ESM-native, pure JS)
-- **Node 22** (see `.nvmrc`); pnpm as package manager
-- Workspace packages reference each other via `workspace:*` protocol
-- Library packages use dist-based exports (`"types"` + `"default"`) — must be built before consumers can import them
+| Package | Purpose |
+|---|---|
+| `packages/core` | Domain types (`Offer`, `User`, `AuthUser`, `PropertyDetails`), Zod schemas, repository interfaces, filter DSL parser, reconciliation logic |
+| `packages/api-contract` | Shared Zod schemas for API request/response validation, sort parser |
+| `packages/db` | Drizzle ORM schema, PostgreSQL repositories (offers, users, property details, auth sessions), filter-to-SQL translator |
+| `packages/cef` | CEF CSV downloader and parser, converts raw CSV rows into domain `Offer` objects via Zod |
+| `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, reconcile, users |
+| `apps/cli` | Commander-based CLI: login, logout, whoami, query, reconcile commands. Bundled with tsup |
+| `infra/aws` | SST v3 infrastructure: Lambda function URL with secrets |
+
+### Key data flow
+
+1. **Reconcile**: CEF CSV download -> parse -> compare with DB (find existing, classify new/updated/unchanged) -> batch insert/update/touch/soft-delete
+2. **Query**: Filter DSL string -> tokenize -> parse AST -> translate to Drizzle SQL -> paginated query
+3. **Auth**: CLI creates session -> browser opens Google OAuth -> callback writes JWT to session -> CLI polls for token
+
+## Development
+
+### Prerequisites
+
+- Node.js 22 (see `.nvmrc`)
+- pnpm 10.28.2 (corepack-managed)
+- Docker (for PostgreSQL)
+
+### Setup
+
+```bash
+cp .env.example .env     # Edit with real Google OAuth creds
+pnpm install
+docker compose up -d     # Start PostgreSQL
+pnpm db:migrate          # Run Drizzle migrations
+pnpm build               # Build all packages in dependency order
+```
+
+### Common commands
+
+```bash
+pnpm build               # Build all packages in topological order
+pnpm dev:api             # Build deps + start API with hot reload (tsx watch)
+pnpm dev:cli             # Run CLI in dev mode
+pnpm db:up               # docker compose up -d
+pnpm db:down             # docker compose down
+pnpm db:generate         # Generate new Drizzle migration from schema changes
+pnpm db:migrate          # Apply pending migrations
+pnpm db:studio           # Open Drizzle Studio (port 4983)
+pnpm test                # Run unit & integration tests
+pnpm test:watch          # Run tests in watch mode
+pnpm test:e2e            # Run E2E tests (requires local PostgreSQL)
+pnpm test:e2e:live       # Run E2E tests against deployed dev Lambda
+pnpm typecheck           # Typecheck all packages
+```
+
+### Building individual packages
+
+Library packages export via `"exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }` and **must be built before consumers can use them**. The `pnpm build` root script handles this automatically in dependency order.
+
+```bash
+pnpm --filter @bidradar/core build
+pnpm --filter @bidradar/api-contract build
+pnpm --filter @bidradar/db build
+pnpm --filter @bidradar/cef build
+pnpm --filter @bidradar/api build
+pnpm --filter @bidradar/cli build    # Uses tsup (bundles everything)
+```
+
+### Running the CLI locally
+
+```bash
+pnpm dev:cli -- login
+pnpm dev:cli -- query -f "uf eq 'DF'"
+pnpm dev:cli -- reconcile cef --uf DF
+```
+
+## Conventions
+
+### TypeScript
+
+- `exactOptionalPropertyTypes` is enabled -- never use `prop: value | undefined` for optional properties; use conditional assignment or separate objects instead
+- `noUncheckedIndexedAccess` is enabled -- array/object indexing returns `T | undefined`
+- `verbatimModuleSyntax` is enabled -- use `import type` for type-only imports
+- All packages use `"module": "preserve"` and target ESNext
+- Use `.js` extensions in relative imports (TypeScript module resolution)
+
+### Zod
+
+- Always use Zod for parsing external input (API requests, env vars, CSV rows, CLI args)
+- Zod v4 is in use: `.default()` on transforms applies to the input type; place `.default()` before `.transform()`
+- The project uses `zod` not `zod/v4` -- the monorepo is already on Zod v4
 
 ### Database
 
-- PostgreSQL 16 via Docker Compose; credentials in `.env` (see `.env.example`)
-- **offers** table: uses `sourceId` (unique, from CEF) as the business key
-  - Change tracking: `version`, `updatedAt`, `lastSeenAt`, `removedAt` (soft delete)
-  - Numeric fields stored as `numeric` — converted to/from strings at the ORM boundary
-- **users** table: Google OAuth users with roles (`admin`, `free`)
-  - Unique constraints on `email` and `google_id`
-  - Default role: `free`; admin emails configured via `ADMIN_EMAILS` env var
+- Drizzle ORM with `postgres.js` driver
+- Numeric columns (prices, percentages) are stored as `numeric` (string in Drizzle) -- convert with `Number()` on read, `String()` on write
+- Schema lives in `packages/db/src/schema.ts`
+- Migrations are in `packages/db/drizzle/` -- generated via `pnpm db:generate`
+- Config in `packages/db/drizzle.config.ts` auto-loads `.env` from monorepo root
 
-### Authentication & Authorization
+### Architecture patterns
 
-- Google OAuth via Authorization Code flow (CLI opens browser -> localhost callback)
-- API exchanges auth code for Google ID token, verifies, issues JWT (7-day expiry, HS256)
-- CLI stores JWT in `~/.bidradar/config.json`
-- Roles: `admin` (can reconcile), `free` (can query)
-- `ADMIN_EMAILS` env var: comma-separated emails auto-assigned `admin` on first login
+- **Repository pattern**: `packages/core` defines interfaces (`OfferRepository`, `UserRepository`), `packages/db` implements them
+- **Clean boundaries**: core has zero workspace deps; db and cef depend only on core; api-contract depends only on core; api composes everything
+- **Factory functions**: Repositories are created via `createOfferRepository()`, `createUserRepository()`, etc.
+- **Streaming**: Reconcile endpoint streams NDJSON progress events; CLI reads with async generator
 
-### API Endpoints
+### API
 
-| Method | Path | Auth | Role | Description |
-|--------|------|------|------|-------------|
-| GET | /health | None | — | Health check |
-| POST | /auth/session | None | — | Start OAuth login session |
-| GET | /auth/login | None | — | Redirect to Google OAuth |
-| GET | /auth/callback | None | — | Google OAuth callback |
-| GET | /auth/token | None | — | Poll for JWT after login |
-| GET | /offers | JWT | any | Query offers with structured filters |
-| POST | /reconcile/:source | JWT | admin | Trigger CEF reconciliation |
-| GET | /users/me | JWT | any | Current user info |
+- Framework: Hono (works on both Node.js and AWS Lambda)
+- Auth: Google OAuth -> HS256 JWT, verified via `jose`
+- Middleware stack: `cors` -> `logger` -> `authenticate` (JWT) -> `authorize` (role check)
+- Error responses follow `{ error: string, message: string, statusCode: number }` shape
+- **CORS: The only API client is the CLI (runs on users' local machines, not a browser). CORS is irrelevant — never add CORS origin restrictions or `ALLOWED_ORIGINS` config. Keep `cors()` with no arguments. The API is protected by JWT auth, not CORS.**
 
-### Data Source Details
+### CLI
 
-- CSV endpoint: `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{estate}.csv`
-- Semicolon-delimited, Latin-1 encoded, first 4 rows skipped (metadata)
-- Brazilian number format (e.g., `1.234.567,89`) normalized during parsing
-- Browser-like HTTP headers required to avoid request blocking
+- Framework: Commander
+- Bundled as single ESM file via tsup with shebang
+- Config stored at `~/.bidradar/config.json`
+- Uses `ora` for spinners, `cli-table3` for output, `less` for paging
+
+## Key files
+
+| File | Description |
+|---|---|
+| `packages/core/src/offer.ts` | `Offer` interface + `OfferSchema` |
+| `packages/core/src/reconcile-offers.ts` | Core reconciliation algorithm |
+| `packages/core/src/filter/parser.ts` | Filter DSL parser (recursive descent) |
+| `packages/core/src/filter/types.ts` | Filter AST node types, field definitions |
+| `packages/api-contract/src/api-contract.ts` | All API Zod schemas + sort parser |
+| `packages/db/src/schema.ts` | Drizzle schema (offers, users, propertyDetails, authSessions) |
+| `packages/db/src/offer-repository.ts` | Offer CRUD with batch operations |
+| `packages/db/src/filter-to-drizzle.ts` | Filter AST -> Drizzle SQL WHERE clause |
+| `packages/cef/src/CefOffer.ts` | CSV row -> Offer via Zod tuple transform |
+| `apps/api/src/app.ts` | Hono app factory with route registration |
+| `apps/api/src/routes/auth.ts` | Google OAuth flow (session/login/callback/token) |
+| `apps/api/src/routes/reconcile.ts` | NDJSON streaming reconcile endpoint |
+| `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
+| `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
+| `infra/aws/api.ts` | SST Lambda function URL definition + dual env aliases (dev/prod) |
+| `sst.config.ts` | SST app config |
+| `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
+| `.github/workflows/release.yml` | Release pipeline (version bump, deploy, promote, publish) |
+| `vitest.config.ts` | Unit/integration test config |
+| `vitest.config.e2e.ts` | E2E test config (local PostgreSQL) |
+| `vitest.config.e2e.live.ts` | E2E test config (live dev Lambda) |
+| `apps/api/Dockerfile` | Multi-stage Docker build for API |
+| `scripts/bump-version.mjs` | Semver bump from conventional commits (`--dry` for detection) |
+| `scripts/generate-changelog.mjs` | Changelog generation from conventional commits |
+
+## Filter DSL
+
+The query filter supports OData-like syntax:
+
+```
+uf eq 'DF'
+askingPrice lt 500000 and discountPercent gt 30
+city contains 'Brasilia' or city contains 'Goiania'
+propertyType in ('Apartamento', 'Casa')
+not (sellingType eq 'Leilao')
+```
+
+Fields: `uf`, `city`, `neighborhood`, `address`, `description`, `propertyType`, `sellingType` (text), `askingPrice`, `evaluationPrice`, `discountPercent` (numeric).
+
+Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswith`, `in`.
+
+## Infrastructure
+
+- **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
+- **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret
+- **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
+- **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
+- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap + GHCR Docker image (`.github/workflows/release.yml`)
+
+### Environments
+
+The API runs on a single Lambda function with two aliases (`dev` and `prod`), each with its own function URL. Both environments share the same PostgreSQL database and SST secrets.
+
+| Environment | Lambda alias | Function URL export | Updated by |
+|---|---|---|---|
+| `dev` | `dev` (tracks `$LATEST`) | `devApiUrl` | Every deploy via SST (automatic on merge to `main`) |
+| `prod` | `prod` (pinned to a published version) | `prodApiUrl` | Release pipeline promotes after E2E tests pass |
+
+- The release pipeline publishes a new Lambda version from `$LATEST` and updates the `prod` alias to point to it
+- Rollback: `aws lambda update-alias --function-name <name> --name prod --function-version <previous-version>`
+- The CLI default API URL is baked in at build time via the `BIDRADAR_DEFAULT_API_URL` env var in `tsup.config.ts`. Release builds use the prod function URL; local dev defaults to `http://localhost:3000`
+
+### Conventional commits
+
+All commits to `main` must follow the [Conventional Commits](https://www.conventionalcommits.org/) format. The release pipeline uses commit messages to determine the semantic version bump automatically.
+
+| Prefix | Bump | Example |
+|---|---|---|
+| `fix:` / `fix(scope):` | patch | `fix(db): handle null discount percent` |
+| `feat:` / `feat(scope):` | minor | `feat(cli): add export command` |
+| `BREAKING CHANGE:` / `type!:` | major | `feat!: rename filter field propertyType to type` |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:` | patch | `chore: update dependencies` |
+
+### CI/CD
+
+**CI pipeline** (`.github/workflows/ci.yml`) -- runs on push/PR to `main`:
+
+1. **Static Checks** -- `pnpm build` + `pnpm typecheck`
+2. **Unit & Integration Tests** -- `pnpm test --passWithNoTests` (needs Static Checks)
+3. **E2E Tests** -- spins up PostgreSQL service, runs `pnpm test:e2e` (needs Static Checks; skipped on fork PRs)
+
+**Release pipeline** (`.github/workflows/release.yml`) -- runs on push to `main`:
+
+1. **Determine Version** -- runs `node scripts/bump-version.mjs --dry` to compute semver bump from conventional commits since last tag
+2. **Static Checks & Tests** -- build, typecheck, unit tests
+3. **Deploy to Dev** -- `npx sst deploy --stage production`, captures dev URL and Lambda name
+4. **E2E Tests (Dev)** -- runs `pnpm test:e2e:live` against the deployed dev alias
+5. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, publishes Lambda version and promotes `prod` alias, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap, pushes Docker image to GHCR
+6. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
+
+Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
+
+### Testing
+
+**Test commands:**
+
+```bash
+pnpm test                # Unit & integration tests (packages/*/src + apps/*/src)
+pnpm test:watch          # Unit tests in watch mode
+pnpm test:e2e            # E2E tests against local PostgreSQL (e2e/**/*.test.ts)
+pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.test.ts)
+```
+
+**Test file conventions:**
+
+- Unit/integration tests: co-located with source as `*.test.ts` files (e.g., `packages/db/src/filter-to-drizzle.test.ts`)
+- E2E tests (local): `e2e/**/*.test.ts` -- require local PostgreSQL via Docker Compose
+- E2E tests (live): `e2e/live/**/*.test.ts` -- require `BIDRADAR_API_URL` env var pointing to deployed dev API
+- Framework: Vitest (config files: `vitest.config.ts`, `vitest.config.e2e.ts`, `vitest.config.e2e.live.ts`)
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | HS256 signing key (min 32 chars) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `ADMIN_EMAILS` | Comma-separated admin emails (auto-assigned admin role on first login) |
+| `PORT` | API listen port (default 3000, local only) |
+| `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
+| `BIDRADAR_API_URL` | API URL used by E2E live tests to target the deployed dev Lambda |
