@@ -27,6 +27,7 @@ env:
   GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
   GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  DEV_API_URL: ${{ secrets.DEV_API_URL }}
 
 jobs:
   # ---------------------------------------------------------------------------
