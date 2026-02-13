@@ -4,5 +4,5 @@ dist/
 .output/
 .env
 .sst/
-.prompts/
+# .prompts/ is tracked -- contains Claude Code prompt templates
 sst-env.d.ts

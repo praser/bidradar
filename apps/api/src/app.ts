@@ -15,7 +15,15 @@ export function createApp(env: Env) {
 
   app.onError(errorHandler)
   app.use('*', logger())
-  app.use('*', cors())
+  app.use(
+    '*',
+    cors({
+      origin: env.ALLOWED_ORIGINS,
+      allowMethods: ['GET', 'POST', 'OPTIONS'],
+      allowHeaders: ['Authorization', 'Content-Type'],
+      maxAge: 86400,
+    }),
+  )
 
   // Public routes
   app.route('/auth', authRoutes(env))

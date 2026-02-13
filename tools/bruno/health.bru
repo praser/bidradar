@@ -1,0 +1,15 @@
+meta {
+  name: health
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://ab433qvzl3ctolop7cndwikzne0ahfyt.lambda-url.sa-east-1.on.aws/health
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}

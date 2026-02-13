@@ -29,6 +29,7 @@ export function authenticate(jwtSecret: string) {
     try {
       const { payload } = await jose.jwtVerify(token, secret, {
         algorithms: ['HS256'],
+        issuer: 'bidradar',
       })
 
       c.set('user', {

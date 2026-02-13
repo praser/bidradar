@@ -38,11 +38,11 @@ reconcile
     parseUf,
     'geral',
   )
-  .action(async (opts: { uf?: string }) => {
+  .action(async (opts: { uf: string }) => {
     const spinner = ora()
     try {
       spinner.start(
-        `Downloading CEF offers${opts.uf ? ` (${opts.uf})` : ''}...`,
+        `Downloading CEF offers${opts.uf !== 'geral' ? ` (${opts.uf})` : ''}...`,
       )
 
       const events = apiRequestStream<ReconcileEvent>(

@@ -6,13 +6,22 @@ const envSchema = z.object({
     .url()
     .default('postgresql://imoveis:imoveis@localhost:5432/imoveis'),
   PORT: z.coerce.number().default(3000),
-  JWT_SECRET: z.string().min(32),
+  JWT_SECRET: z
+    .string()
+    .min(32)
+    .refine((s) => !s.startsWith('change-me'), {
+      message: 'JWT_SECRET must be changed from the default placeholder value',
+    }),
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
   ADMIN_EMAILS: z
     .string()
     .default('')
     .transform((s) => (s.length > 0 ? s.split(',').map((e) => e.trim()) : [])),
+  ALLOWED_ORIGINS: z
+    .string()
+    .default('http://localhost:3000')
+    .transform((s) => s.split(',').map((o) => o.trim())),
 })
 
 export type Env = z.infer<typeof envSchema>

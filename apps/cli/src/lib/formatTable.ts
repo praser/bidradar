@@ -103,6 +103,7 @@ export function renderTable(offers: Offer[], columnKeys?: string): string {
   for (const offer of offers) {
     const row = cols.map((col) => {
       const value = offer[col.key]
+      if (value == null) return '-'
       if (col.format) return col.format(value)
       if (col.maxWidth) return truncate(value, col.maxWidth)
       return String(value)
