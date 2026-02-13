@@ -1,3 +1,8 @@
+---
+name: add-migration
+description: Create a new Drizzle database migration after schema changes, including generation, review, and application. Use when modifying the database schema.
+---
+
 # Add Database Migration
 
 Create a new Drizzle migration after schema changes.

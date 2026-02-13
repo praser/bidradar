@@ -1,3 +1,8 @@
+---
+name: add-cli-command
+description: Add a new command to the bidradar CLI application using Commander, ora spinners, and the API client. Use when extending the CLI with new user-facing commands.
+---
+
 # Add CLI Command
 
 Add a new command to the bidradar CLI application.

@@ -1,3 +1,8 @@
+---
+name: deploy
+description: Deploy the bidradar API to AWS using SST, manage secrets, run database migrations, and handle the release process. Use when deploying, releasing, or managing infrastructure.
+---
+
 # Deploy
 
 Deploy the bidradar API to AWS using SST.

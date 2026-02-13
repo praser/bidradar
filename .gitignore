@@ -6,3 +6,4 @@ dist/
 .sst/
 sst-env.d.ts
 .DS_Store
+.claude/

@@ -1,3 +1,8 @@
+---
+name: add-filter-field
+description: Add a new field to the filter DSL so users can filter and sort offers by it in queries. Use when extending the query capabilities with new filterable or sortable fields.
+---
+
 # Add Filter Field
 
 Add a new field to the filter DSL so users can filter and sort by it.

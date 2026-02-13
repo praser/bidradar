@@ -1,3 +1,8 @@
+---
+name: add-data-source
+description: Add a new external data source package for real estate offer ingestion, similar to the existing CEF package. Use when integrating a new auction source or data provider.
+---
+
 # Add Data Source
 
 Add a new external data source (similar to the existing CEF package).

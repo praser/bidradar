@@ -1,3 +1,8 @@
+---
+name: add-api-route
+description: Add a new route to the Hono API server with Zod validation, middleware integration, and proper error handling patterns. Use when creating new API endpoints or extending the REST API.
+---
+
 # Add API Route
 
 Add a new route to the Hono API server.
