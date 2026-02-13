@@ -9,7 +9,11 @@
       "Bash(docker compose *)",
       "Bash(pnpm typecheck)",
       "Bash(pnpm test*)",
-      "Bash(tsx *)"
+      "Bash(tsx *)",
+      "Bash(npx sst *)",
+      "Bash(gh run *)",
+      "Bash(gh release *)",
+      "Bash(git tag *)"
     ]
   }
 }

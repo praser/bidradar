@@ -70,6 +70,11 @@ pnpm db:down             # docker compose down
 pnpm db:generate         # Generate new Drizzle migration from schema changes
 pnpm db:migrate          # Apply pending migrations
 pnpm db:studio           # Open Drizzle Studio (port 4983)
+pnpm test                # Run unit & integration tests
+pnpm test:watch          # Run tests in watch mode
+pnpm test:e2e            # Run E2E tests (requires local PostgreSQL)
+pnpm test:e2e:live       # Run E2E tests against deployed dev Lambda
+pnpm typecheck           # Typecheck all packages
 ```
 
 ### Building individual packages
@@ -157,8 +162,16 @@ pnpm dev:cli -- reconcile cef --uf DF
 | `apps/api/src/routes/reconcile.ts` | NDJSON streaming reconcile endpoint |
 | `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
 | `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
-| `infra/aws/api.ts` | SST Lambda function URL definition |
+| `infra/aws/api.ts` | SST Lambda function URL definition + dual env aliases (dev/prod) |
 | `sst.config.ts` | SST app config |
+| `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
+| `.github/workflows/release.yml` | Release pipeline (version bump, deploy, promote, publish) |
+| `vitest.config.ts` | Unit/integration test config |
+| `vitest.config.e2e.ts` | E2E test config (local PostgreSQL) |
+| `vitest.config.e2e.live.ts` | E2E test config (live dev Lambda) |
+| `apps/api/Dockerfile` | Multi-stage Docker build for API |
+| `scripts/bump-version.mjs` | Semver bump from conventional commits (`--dry` for detection) |
+| `scripts/generate-changelog.mjs` | Changelog generation from conventional commits |
 
 ## Filter DSL
 
@@ -181,8 +194,69 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 - **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
 - **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret
 - **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
-- **CI**: GitHub Actions -- build + typecheck on push/PR to main
-- **Release**: Tag-triggered workflow -- CLI tarball + GitHub Release + Homebrew tap update + GHCR Docker image
+- **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
+- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap + GHCR Docker image (`.github/workflows/release.yml`)
+
+### Environments
+
+The API runs on a single Lambda function with two aliases (`dev` and `prod`), each with its own function URL. Both environments share the same PostgreSQL database and SST secrets.
+
+| Environment | Lambda alias | Function URL export | Updated by |
+|---|---|---|---|
+| `dev` | `dev` (tracks `$LATEST`) | `devApiUrl` | Every deploy via SST (automatic on merge to `main`) |
+| `prod` | `prod` (pinned to a published version) | `prodApiUrl` | Release pipeline promotes after E2E tests pass |
+
+- The release pipeline publishes a new Lambda version from `$LATEST` and updates the `prod` alias to point to it
+- Rollback: `aws lambda update-alias --function-name <name> --name prod --function-version <previous-version>`
+- The CLI default API URL is baked in at build time via the `BIDRADAR_DEFAULT_API_URL` env var in `tsup.config.ts`. Release builds use the prod function URL; local dev defaults to `http://localhost:3000`
+
+### Conventional commits
+
+All commits to `main` must follow the [Conventional Commits](https://www.conventionalcommits.org/) format. The release pipeline uses commit messages to determine the semantic version bump automatically.
+
+| Prefix | Bump | Example |
+|---|---|---|
+| `fix:` / `fix(scope):` | patch | `fix(db): handle null discount percent` |
+| `feat:` / `feat(scope):` | minor | `feat(cli): add export command` |
+| `BREAKING CHANGE:` / `type!:` | major | `feat!: rename filter field propertyType to type` |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:` | patch | `chore: update dependencies` |
+
+### CI/CD
+
+**CI pipeline** (`.github/workflows/ci.yml`) -- runs on push/PR to `main`:
+
+1. **Static Checks** -- `pnpm build` + `pnpm typecheck`
+2. **Unit & Integration Tests** -- `pnpm test --passWithNoTests` (needs Static Checks)
+3. **E2E Tests** -- spins up PostgreSQL service, runs `pnpm test:e2e` (needs Static Checks; skipped on fork PRs)
+
+**Release pipeline** (`.github/workflows/release.yml`) -- runs on push to `main`:
+
+1. **Determine Version** -- runs `node scripts/bump-version.mjs --dry` to compute semver bump from conventional commits since last tag
+2. **Static Checks & Tests** -- build, typecheck, unit tests
+3. **Deploy to Dev** -- `npx sst deploy --stage production`, captures dev URL and Lambda name
+4. **E2E Tests (Dev)** -- runs `pnpm test:e2e:live` against the deployed dev alias
+5. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, publishes Lambda version and promotes `prod` alias, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap, pushes Docker image to GHCR
+6. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
+
+Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
+
+### Testing
+
+**Test commands:**
+
+```bash
+pnpm test                # Unit & integration tests (packages/*/src + apps/*/src)
+pnpm test:watch          # Unit tests in watch mode
+pnpm test:e2e            # E2E tests against local PostgreSQL (e2e/**/*.test.ts)
+pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.test.ts)
+```
+
+**Test file conventions:**
+
+- Unit/integration tests: co-located with source as `*.test.ts` files (e.g., `packages/db/src/filter-to-drizzle.test.ts`)
+- E2E tests (local): `e2e/**/*.test.ts` -- require local PostgreSQL via Docker Compose
+- E2E tests (live): `e2e/live/**/*.test.ts` -- require `BIDRADAR_API_URL` env var pointing to deployed dev API
+- Framework: Vitest (config files: `vitest.config.ts`, `vitest.config.e2e.ts`, `vitest.config.e2e.live.ts`)
 
 ## Environment variables
 
@@ -194,3 +268,5 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `ADMIN_EMAILS` | Comma-separated admin emails (auto-assigned admin role on first login) |
 | `PORT` | API listen port (default 3000, local only) |
+| `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
+| `BIDRADAR_API_URL` | API URL used by E2E live tests to target the deployed dev Lambda |

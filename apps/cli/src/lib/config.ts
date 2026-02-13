@@ -6,8 +6,10 @@ import { z } from 'zod'
 const CONFIG_DIR = join(homedir(), '.bidradar')
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
 
+const DEFAULT_API_URL = process.env.BIDRADAR_DEFAULT_API_URL ?? 'http://localhost:3000'
+
 const ConfigSchema = z.object({
-  apiUrl: z.string().url().default('http://localhost:3000'),
+  apiUrl: z.string().url().default(DEFAULT_API_URL),
   token: z.string().optional(),
 })
 
