@@ -3,3 +3,6 @@ dist/
 .input/
 .output/
 .env
+.sst/
+.prompts/
+sst-env.d.ts
