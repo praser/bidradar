@@ -1,10 +1,8 @@
 import { Command, InvalidArgumentError } from 'commander'
 import { z } from 'zod'
 import ora from 'ora'
-import type { ReconcileResponseSchema } from '@bidradar/api-contract'
-import { apiRequest, ApiError } from '../lib/apiClient.js'
-
-type ReconcileResponse = z.infer<typeof ReconcileResponseSchema>
+import type { ReconcileEvent } from '@bidradar/api-contract'
+import { apiRequestStream, ApiError } from '../lib/apiClient.js'
 
 const BRAZILIAN_STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
@@ -44,18 +42,67 @@ reconcile
     const spinner = ora()
     try {
       spinner.start(
-        `Reconciling CEF offers${opts.uf ? ` (${opts.uf})` : ''}...`,
+        `Downloading CEF offers${opts.uf ? ` (${opts.uf})` : ''}...`,
       )
 
-      const result = await apiRequest<ReconcileResponse>(
+      const events = apiRequestStream<ReconcileEvent>(
         'POST',
         '/reconcile/cef',
         { query: { uf: opts.uf } },
       )
 
-      spinner.succeed('Reconciliation complete')
-      console.log()
-      console.table(result)
+      let finalResult: { created: number; updated: number; skipped: number; removed: number } | undefined
+
+      for await (const event of events) {
+        switch (event.type) {
+          case 'start':
+            spinner.text = `Classifying ${event.total} offers...`
+            break
+          case 'progress':
+            switch (event.step) {
+              case 'classifying':
+                spinner.text = `Classifying ${event.detail?.total ?? ''} offers...`
+                break
+              case 'classified':
+                spinner.text = `Found: ${event.detail?.created ?? 0} new, ${event.detail?.updated ?? 0} changed, ${event.detail?.skipped ?? 0} unchanged`
+                break
+              case 'inserting':
+                spinner.text = `Inserting ${event.detail?.count ?? 0} new offers...`
+                break
+              case 'updating':
+                spinner.text = `Updating ${event.detail?.count ?? 0} changed offers...`
+                break
+              case 'touching':
+                spinner.text = `Updating ${event.detail?.count ?? 0} timestamps...`
+                break
+              case 'removing':
+                spinner.text = 'Removing stale offers...'
+                break
+            }
+            break
+          case 'done':
+            finalResult = {
+              created: event.created,
+              updated: event.updated,
+              skipped: event.skipped,
+              removed: event.removed,
+            }
+            break
+          case 'error':
+            spinner.fail(`Reconciliation failed: ${event.message}`)
+            process.exitCode = 1
+            return
+        }
+      }
+
+      if (finalResult) {
+        spinner.succeed('Reconciliation complete')
+        console.log()
+        console.table(finalResult)
+      } else {
+        spinner.fail('Reconciliation ended without a result')
+        process.exitCode = 1
+      }
     } catch (err) {
       if (err instanceof ApiError && err.statusCode === 403) {
         spinner.fail('Access denied: this command requires admin privileges')

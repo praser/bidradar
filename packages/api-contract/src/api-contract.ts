@@ -78,6 +78,25 @@ export const ReconcileResponseSchema = z.object({
   removed: z.number(),
 })
 
+// Reconcile NDJSON streaming events
+export const ReconcileEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('start'), total: z.number().int() }),
+  z.object({
+    type: z.literal('progress'),
+    step: z.string(),
+    detail: z.record(z.string(), z.number()).optional(),
+  }),
+  z.object({
+    type: z.literal('done'),
+    created: z.number(),
+    updated: z.number(),
+    skipped: z.number(),
+    removed: z.number(),
+  }),
+  z.object({ type: z.literal('error'), message: z.string() }),
+])
+export type ReconcileEvent = z.infer<typeof ReconcileEventSchema>
+
 // GET /users/me
 export const UserMeResponseSchema = AuthUserSchema
 
