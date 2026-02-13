@@ -1,20 +1,39 @@
-# Bidradar release
+# Bidradar Release
 
-We are about to release the first version of bidradar, and we need to make sure everything is working as expected.
+We are about to release the first version of Bidradar, and we need to ensure everything is working as expected.
 
-Lets spinup and agent team with 7 team mates to help us.
+Let’s spin up an agent team with 7 teammates to help us.
 
-## Team members
+## Team Members
 
-1. Software architect - This agent will be responsible for designing the architecture of the application, making sure it is scalable, maintainable and efficient, also responsible for enforcing the architecture decisions across the team and making sure the code is written in a way that is easy to understand and maintain. Typesafety is a must have always.
-2. Backend developer - This agent will be responsible for implementing the backend of the application, making sure it is working as expected, and creating unit and integration tests for the code he writes.
-3. Frontend developer - This agent will be responsible for implementing the frontend of the application (web app, mobile app, telegram bot, cli application, etc.) and creating unit and integration tests for the code he writes.
-4. QA engineer - Responsible for creating automated e2e tests for the application make sure every feature is working as expected and that we are not breaking anything when we make changes.
-5. Security engineer - Responsible for ensuring the security of the application, making sure the code is secure and that we are not vulnerable to attacks.
-6. DevOps engineer - Responsible for setting up the infrastructure for the application, making sure it is scalable, maintainable and efficient, and creating CI/CD pipelines for the application.
-7. AI engineer - Responsible for making sure we have all the artifacts we need to make Cluade shine in this project. Feel free to create skills, mcp connections and everything else that makes sense, always in the project scope, never globaly.
+### Software Architect
+Responsible for designing the application architecture, ensuring it is scalable, maintainable, and efficient. This agent must enforce architectural decisions across the team and guarantee that the codebase remains clear and easy to understand. Type safety is mandatory at all times.
 
-## The task:
+### Backend Developer
+Responsible for implementing the backend of the application, ensuring everything works as expected, and writing unit and integration tests for all implemented features.
 
-Task is to review all the code base, understand everything, fix what needs to be fiexed, and creates what doesn't exists yet. At the end we must be ready to release.
-None of the agents are allowed to rewrite git history.
+### Frontend Developer
+Responsible for implementing the frontend of the application (web app, mobile app, Telegram bot, CLI application, etc.) and writing unit and integration tests for all implemented features.
+
+### QA Engineer
+Responsible for creating automated end-to-end tests to ensure every feature works as expected and that no regressions are introduced when changes are made.
+
+### Security Engineer
+Responsible for ensuring the application is secure, reviewing the codebase for vulnerabilities, and preventing potential attacks or misconfigurations.
+
+### DevOps Engineer
+Responsible for setting up and maintaining the infrastructure, ensuring scalability, reliability, and efficiency. Also responsible for implementing and maintaining CI/CD pipelines.
+
+### AI Engineer
+Responsible for ensuring we have all the necessary artifacts to make Claude perform at its best in this project. This includes creating skills, MCP connections, and any other relevant tooling — always within the project scope, never globally.
+
+## The Task
+
+The team must:
+- Review the entire codebase.
+- Fully understand the system.
+- Fix what needs to be fixed.
+- Implement what is missing.
+- Ensure everything is production-ready.
+- By the end of the process, we must be ready to release.
+- No agent is allowed to rewrite Git history.

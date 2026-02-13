@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm build)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm --filter *)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm db:*)",
+      "Bash(docker compose *)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test*)",
+      "Bash(tsx *)"
+    ]
+  }
+}
