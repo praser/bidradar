@@ -23,11 +23,11 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
   GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
-  DEV_API_URL: ${{ secrets.DEV_API_URL }}
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -105,8 +105,8 @@ jobs:
     needs: [version, checks]
     if: needs.version.outputs.skip != 'true'
     outputs:
-      dev_api_url: ${{ steps.deploy.outputs.dev_api_url }}
-      lambda_name: ${{ steps.deploy.outputs.lambda_name }}
+      dev_api_url: ${{ steps.sst-outputs.outputs.dev_api_url }}
+      lambda_name: ${{ steps.sst-outputs.outputs.lambda_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -119,7 +119,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm build
+
       - uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ !env.ACT }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -128,22 +131,29 @@ jobs:
       - name: Deploy with SST
         id: deploy
         run: |
-          npx sst deploy --stage production 2>&1 | tee /tmp/sst-deploy.log
+          npx sst deploy --stage production
 
-          # Read outputs from SST state
-          DEV_URL=$(npx sst shell --stage production -- \
-            node -e "console.log(process.env.devApiUrl || '')" 2>/dev/null || true)
-          LAMBDA_NAME=$(npx sst shell --stage production -- \
-            node -e "console.log(process.env.apiName || '')" 2>/dev/null || true)
+      - name: Read SST outputs
+        id: sst-outputs
+        run: |
+          # Find the Lambda function created by SST
+          LAMBDA_NAME=$(aws lambda list-functions \
+            --query "Functions[?starts_with(FunctionName, 'bidradar-production-Api')].FunctionName | [0]" \
+            --output text)
 
-          # Fallback: query AWS directly for the function URL
-          if [ -z "$DEV_URL" ]; then
-            if [ -n "$LAMBDA_NAME" ]; then
-              DEV_URL=$(aws lambda get-function-url-config \
-                --function-name "$LAMBDA_NAME" \
-                --qualifier dev \
-                --query 'FunctionUrl' --output text 2>/dev/null || true)
-            fi
+          if [ -z "$LAMBDA_NAME" ] || [ "$LAMBDA_NAME" = "None" ]; then
+            echo "::error::Could not determine Lambda function name"
+            exit 1
+          fi
+
+          DEV_URL=$(aws lambda get-function-url-config \
+            --function-name "$LAMBDA_NAME" \
+            --qualifier dev \
+            --query 'FunctionUrl' --output text)
+
+          if [ -z "$DEV_URL" ] || [ "$DEV_URL" = "None" ]; then
+            echo "::error::Could not determine dev API URL"
+            exit 1
           fi
 
           echo "dev_api_url=$DEV_URL" >> "$GITHUB_OUTPUT"
@@ -190,6 +200,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure git auth (act only)
+        if: ${{ env.ACT }}
+        run: |
+          REPO_URL=$(git remote get-url origin | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||')
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@${REPO_URL#https://}.git"
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -200,6 +216,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ !env.ACT }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -318,6 +335,7 @@ jobs:
 
       # --- Build and push Docker image ---
       - name: Log in to GitHub Container Registry
+        if: ${{ !env.ACT }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -325,6 +343,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API Docker image
+        if: ${{ !env.ACT }}
         uses: docker/build-push-action@v6
         with:
           context: .
