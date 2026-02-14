@@ -4,6 +4,11 @@
  * Determines the next semver version from conventional commits since the last
  * git tag, then updates every package.json in the monorepo.
  *
+ * 1. Reads current version from the root package.json
+ * 2. Determines bump type (major/minor/patch) from conventional commits
+ * 3. Fetches all existing tags from the remote in a single call
+ * 4. Increments until it finds a version that doesn't conflict
+ *
  * Usage:
  *   node scripts/bump-version.mjs          # auto-detect bump type
  *   node scripts/bump-version.mjs --dry    # print next version without writing
@@ -29,66 +34,50 @@ const PACKAGE_PATHS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Git helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
-function git(cmd, opts = {}) {
-  return execSync(`git ${cmd}`, {
-    cwd: ROOT,
-    encoding: "utf-8",
-    ...opts,
-  }).trim();
+function git(cmd) {
+  return execSync(`git ${cmd}`, { cwd: ROOT, encoding: "utf-8" }).trim();
 }
 
-function getReachableTag() {
-  try {
-    return git("describe --tags --abbrev=0");
-  } catch {
-    return null;
-  }
+function getCurrentVersion() {
+  const pkg = JSON.parse(
+    readFileSync(resolve(ROOT, "package.json"), "utf-8"),
+  );
+  return pkg.version;
 }
 
-function fetchRemoteTags() {
+/** Single network call — returns a Set of version strings (without "v" prefix). */
+function getRemoteTagVersions() {
   try {
-    git("fetch --tags --force");
-  } catch {
-    // Continue with local tags if fetch fails (e.g., no remote)
-  }
-}
+    const output = git("ls-remote --tags origin");
+    if (!output) return new Set();
 
-function getHighestTag() {
-  try {
-    const output = git("tag --list 'v*' --sort=-v:refname");
-    if (!output) return null;
-    const tags = output.split("\n").filter(Boolean);
-    for (const tag of tags) {
-      try {
-        parseSemver(tag);
-        return tag;
-      } catch {
-        continue;
+    const versions = new Set();
+    for (const line of output.split("\n")) {
+      const match = line.match(/refs\/tags\/v(\d+\.\d+\.\d+)$/);
+      if (match) {
+        versions.add(match[1]);
       }
     }
-    return null;
+    return versions;
   } catch {
-    return null;
+    return new Set();
   }
 }
 
-function tagExists(version) {
+function getCommitsSince(version) {
   try {
-    git(`rev-parse --verify refs/tags/v${version}`, { stdio: "pipe" });
-    return true;
+    const log = git(`log v${version}..HEAD --pretty="format:%s"`);
+    if (!log) return [];
+    return log.split("\n").filter(Boolean);
   } catch {
-    return false;
+    // Tag doesn't exist locally — fall back to all commits
+    const log = git('log --pretty="format:%s"');
+    if (!log) return [];
+    return log.split("\n").filter(Boolean);
   }
-}
-
-function getCommitsSince(tag) {
-  const range = tag ? `${tag}..HEAD` : "HEAD";
-  const log = git(`log ${range} --pretty="format:%s"`);
-  if (!log) return [];
-  return log.split("\n").filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +99,6 @@ function parseSemver(version) {
 
 function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
-}
-
-function compareSemver(a, b) {
-  if (a.major !== b.major) return a.major - b.major;
-  if (a.minor !== b.minor) return a.minor - b.minor;
-  return a.patch - b.patch;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +139,24 @@ function applyBump(version, bump) {
   }
 }
 
+/**
+ * Starting from the initial bump, increment the bumped component until the
+ * version doesn't exist in the remote tags.
+ *
+ *   bump=patch:  0.0.2 → 0.0.3 → 0.0.4 → ...
+ *   bump=minor:  0.1.0 → 0.2.0 → 0.3.0 → ...
+ *   bump=major:  1.0.0 → 2.0.0 → 3.0.0 → ...
+ */
+function findAvailableVersion(current, bump, existingVersions) {
+  let candidate = applyBump(current, bump);
+
+  while (existingVersions.has(formatVersion(candidate))) {
+    candidate = applyBump(candidate, bump);
+  }
+
+  return candidate;
+}
+
 // ---------------------------------------------------------------------------
 // Package.json updates
 // ---------------------------------------------------------------------------
@@ -175,19 +176,11 @@ function updatePackageVersions(newVersion) {
 
 const dryRun = process.argv.includes("--dry");
 
-// Ensure we have all remote tags before any version logic
-fetchRemoteTags();
+const currentVersion = getCurrentVersion();
+const current = parseSemver(currentVersion);
+const existingVersions = getRemoteTagVersions();
 
-// reachableTag: latest tag that is an ancestor of HEAD (base for bumping)
-// highestTag: highest semver tag across all branches (fallback if candidate conflicts)
-const reachableTag = getReachableTag();
-const highestTag = getHighestTag();
-
-const reachableVersion = reachableTag
-  ? parseSemver(reachableTag)
-  : parseSemver("0.0.0");
-
-const commits = getCommitsSince(reachableTag);
+const commits = getCommitsSince(currentVersion);
 
 if (commits.length === 0) {
   console.error("No commits found since last tag. Nothing to bump.");
@@ -195,36 +188,17 @@ if (commits.length === 0) {
 }
 
 const bump = determineBumpType(commits);
-
-// Bump from the reachable tag first (natural progression for the current branch)
-let nextVersion = formatVersion(applyBump(reachableVersion, bump));
-
-// If that version already exists, bump from the highest tag instead
-if (tagExists(nextVersion)) {
-  const highestVersion = highestTag
-    ? parseSemver(highestTag)
-    : parseSemver("0.0.0");
-  nextVersion = formatVersion(applyBump(highestVersion, bump));
-
-  if (tagExists(nextVersion)) {
-    console.error(
-      `Both v${formatVersion(applyBump(reachableVersion, bump))} and v${nextVersion} already exist. Cannot determine next version.`,
-    );
-    process.exit(1);
-  }
-}
+const nextVersion = formatVersion(findAvailableVersion(current, bump, existingVersions));
 
 if (dryRun) {
-  console.error(`Reachable tag: ${reachableTag ?? "(none)"}`);
-  console.error(`Highest tag:   ${highestTag ?? "(none)"}`);
+  console.error(`Current: ${currentVersion}`);
   console.error(`Bump:    ${bump}`);
   console.error(`Next:    ${nextVersion}`);
   console.error(`Commits: ${commits.length}`);
+  console.error(`Remote tags: ${existingVersions.size}`);
 } else {
   updatePackageVersions(nextVersion);
-  console.error(
-    `Bumped ${formatVersion(reachableVersion)} -> ${nextVersion} (${bump})`,
-  );
+  console.error(`Bumped ${currentVersion} -> ${nextVersion} (${bump})`);
   console.error(`Updated ${PACKAGE_PATHS.length} package.json files`);
 }
 
