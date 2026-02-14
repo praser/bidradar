@@ -18,10 +18,24 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
+const FILE_TYPES = ['offer-list'] as const
+
 const download = new Command('download')
   .description('Download a CEF file and upload it to S3 via presigned URL')
-  .argument('<file-type>', 'File type to download (e.g. offer-list)')
-  .action(async (fileType: string) => {
+  .argument('[file-type]', `File type to download (${FILE_TYPES.join(', ')})`)
+  .action(async (fileType?: string) => {
+    if (!fileType) {
+      console.log('Available file types: ' + FILE_TYPES.join(', '))
+      console.log()
+      download.help()
+      return
+    }
+    if (!FILE_TYPES.includes(fileType as (typeof FILE_TYPES)[number])) {
+      console.error(`Unknown file type: ${fileType}`)
+      console.log('Available file types: ' + FILE_TYPES.join(', '))
+      process.exitCode = 1
+      return
+    }
     const spinner = ora()
     try {
       spinner.start('Downloading CSV from CEF...')
