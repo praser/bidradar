@@ -28,6 +28,7 @@ function createMockRepo(
     findExistingOffers: vi.fn().mockResolvedValue(existingMap),
     insertVersions: vi.fn().mockResolvedValue(undefined),
     insertDeleteVersions: vi.fn().mockResolvedValue(0),
+    findOffersNeedingDetails: vi.fn().mockResolvedValue([]),
   }
 }
 

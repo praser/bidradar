@@ -17,8 +17,10 @@ export interface DownloadMetadata {
   readonly downloadedAt: Date
   readonly bucketName: string
   readonly bucketKey: string
+  readonly contentHash?: string
 }
 
 export interface DownloadMetadataRepository {
   insert(metadata: DownloadMetadata): Promise<string>
+  findByContentHash(hash: string): Promise<{ id: string } | undefined>
 }

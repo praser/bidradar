@@ -1,4 +1,5 @@
 import type { Offer } from './offer.js'
+import type { OfferForDetailDownload } from './download-offer-details.js'
 
 export interface ExistingOfferInfo {
   readonly latestVersion: number
@@ -21,4 +22,6 @@ export interface OfferRepository {
     activeSourceIds: ReadonlySet<string>,
     downloadId: string,
   ): Promise<number>
+
+  findOffersNeedingDetails(since?: Date): Promise<OfferForDetailDownload[]>
 }
