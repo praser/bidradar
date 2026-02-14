@@ -74,6 +74,21 @@ export const propertyDetails = pgTable('property_details', {
 export type PropertyDetailsRow = typeof propertyDetails.$inferSelect
 export type PropertyDetailsInsert = typeof propertyDetails.$inferInsert
 
+export const downloadMetadata = pgTable('download_metadata', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fileName: text('file_name').notNull(),
+  fileExtension: text('file_extension').notNull(),
+  fileSize: integer('file_size').notNull(),
+  fileType: text('file_type').notNull(),
+  downloadUrl: text('download_url').notNull(),
+  downloadedAt: timestamp('downloaded_at', { withTimezone: true }).notNull(),
+  bucketName: text('bucket_name').notNull(),
+  bucketKey: text('bucket_key').notNull(),
+})
+
+export type DownloadMetadataRow = typeof downloadMetadata.$inferSelect
+export type DownloadMetadataInsert = typeof downloadMetadata.$inferInsert
+
 export const authSessions = pgTable('auth_sessions', {
   id: text('id').primaryKey(),
   result: jsonb('result'),

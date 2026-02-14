@@ -1,0 +1,19 @@
+{
+  "name": "@bidradar/cef-lambdas",
+  "version": "0.0.1-alpha",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bidradar/cef": "workspace:*",
+    "@bidradar/core": "workspace:*",
+    "@bidradar/db": "workspace:*",
+    "@aws-sdk/client-s3": "^3.750.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3"
+  }
+}

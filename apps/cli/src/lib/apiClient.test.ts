@@ -135,7 +135,7 @@ describe('apiRequestStream', () => {
     )
 
     const events: unknown[] = []
-    for await (const event of apiRequestStream('POST', '/reconcile/cef')) {
+    for await (const event of apiRequestStream('POST', '/test/stream')) {
       events.push(event)
     }
 
@@ -154,7 +154,7 @@ describe('apiRequestStream', () => {
       ),
     )
 
-    const gen = apiRequestStream('POST', '/reconcile/cef')
+    const gen = apiRequestStream('POST', '/test/stream')
     await expect(gen.next()).rejects.toThrow(ApiError)
   })
 
@@ -166,7 +166,7 @@ describe('apiRequestStream', () => {
     vi.mocked(fetch).mockResolvedValue(response)
 
     const events: unknown[] = []
-    for await (const event of apiRequestStream('POST', '/reconcile/cef')) {
+    for await (const event of apiRequestStream('POST', '/test/stream')) {
       events.push(event)
     }
 
@@ -179,7 +179,7 @@ describe('apiRequestStream', () => {
       new Response(null, { status: 200 }),
     )
 
-    const gen = apiRequestStream('POST', '/reconcile/cef')
+    const gen = apiRequestStream('POST', '/test/stream')
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     await gen.next()
 
@@ -207,7 +207,7 @@ describe('apiRequestStream', () => {
     )
 
     const events: unknown[] = []
-    for await (const event of apiRequestStream('POST', '/reconcile/cef')) {
+    for await (const event of apiRequestStream('POST', '/test/stream')) {
       events.push(event)
     }
 

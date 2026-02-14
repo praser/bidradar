@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@bidradar/api-contract": "workspace:*",
-    "@bidradar/cef": "workspace:*",
     "@bidradar/core": "workspace:*",
     "@bidradar/db": "workspace:*",
     "@hono/node-server": "^1.14.1",
