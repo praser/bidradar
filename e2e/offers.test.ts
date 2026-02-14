@@ -261,8 +261,93 @@ describe('GET /offers', () => {
       }
     })
 
+    it('supports compound filters with or', async () => {
+      if (!dbAvailable) return
+      await seedOffers(4)
+
+      const filter = encodeURIComponent("uf eq 'DF' or uf eq 'SP'")
+      const res = await request(app, `/offers?filter=${filter}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      expect(res.status).toBe(200)
+
+      const body = (await res.json()) as {
+        data: Array<{ uf: string }>
+      }
+      expect(body.data.length).toBeGreaterThan(0)
+      for (const item of body.data) {
+        expect(['DF', 'SP']).toContain(item.uf)
+      }
+    })
+
+    it('supports in operator', async () => {
+      if (!dbAvailable) return
+      await seedOffers(4)
+
+      const filter = encodeURIComponent("uf in ('DF', 'SP')")
+      const res = await request(app, `/offers?filter=${filter}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      expect(res.status).toBe(200)
+
+      const body = (await res.json()) as {
+        data: Array<{ uf: string }>
+      }
+      expect(body.data.length).toBeGreaterThan(0)
+      for (const item of body.data) {
+        expect(['DF', 'SP']).toContain(item.uf)
+      }
+    })
+
+    it('supports not operator', async () => {
+      if (!dbAvailable) return
+      await seedOffers(4)
+
+      const filter = encodeURIComponent("not (uf eq 'DF')")
+      const res = await request(app, `/offers?filter=${filter}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      expect(res.status).toBe(200)
+
+      const body = (await res.json()) as {
+        data: Array<{ uf: string }>
+      }
+      for (const item of body.data) {
+        expect(item.uf).not.toBe('DF')
+      }
+    })
+
+    it('supports ne operator', async () => {
+      if (!dbAvailable) return
+      await seedOffers(4)
+
+      const filter = encodeURIComponent("uf ne 'DF'")
+      const res = await request(app, `/offers?filter=${filter}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      expect(res.status).toBe(200)
+
+      const body = (await res.json()) as {
+        data: Array<{ uf: string }>
+      }
+      for (const item of body.data) {
+        expect(item.uf).not.toBe('DF')
+      }
+    })
+
     it('returns 400 for invalid filter syntax', async () => {
       const res = await request(app, '/offers?filter=invalid!!!filter', {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      expect(res.status).toBe(400)
+
+      const body = (await res.json()) as { error: string }
+      expect(body.error).toBe('INVALID_FILTER')
+    })
+
+    it('returns 400 for unknown filter field', async () => {
+      const filter = encodeURIComponent("nonexistentField eq 'value'")
+      const res = await request(app, `/offers?filter=${filter}`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       })
       expect(res.status).toBe(400)
