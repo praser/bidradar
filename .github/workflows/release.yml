@@ -14,7 +14,6 @@ concurrency:
 
 permissions:
   contents: write
-  packages: write
   issues: write
   id-token: write
 
@@ -60,7 +59,7 @@ jobs:
           fi
 
           # Dry-run: get the next version without writing files
-          VERSION=$(node scripts/bump-version.mjs --dry)
+          VERSION=$(node scripts/bump-version.mjs --dry 2>/dev/null || true)
           if [ -z "$VERSION" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Could not determine version — skipping"
@@ -328,26 +327,6 @@ jobs:
           git add Formula/bidradar.rb
           git commit -m "Update bidradar to ${VERSION}"
           git push
-
-      # --- Build and push Docker image ---
-      - name: Log in to GitHub Container Registry
-        if: ${{ !env.ACT }}
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push API Docker image
-        if: ${{ !env.ACT }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/praser/bidradar-api:${{ needs.version.outputs.new_version }}
-            ghcr.io/praser/bidradar-api:latest
 
   # ---------------------------------------------------------------------------
   # 6. On failure — create GitHub issue

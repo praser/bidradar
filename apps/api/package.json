@@ -12,6 +12,8 @@
     "@bidradar/api-contract": "workspace:*",
     "@bidradar/core": "workspace:*",
     "@bidradar/db": "workspace:*",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@hono/node-server": "^1.14.1",
     "drizzle-orm": "^0.45.1",
     "google-auth-library": "^9.15.1",

@@ -64,6 +64,17 @@ export const OffersResponseSchema = z.object({
 // GET /users/me
 export const UserMeResponseSchema = AuthUserSchema
 
+// POST /management/upload-url
+export const UploadUrlRequestSchema = z.object({
+  fileType: z.enum(['offer-list']),
+})
+
+export const UploadUrlResponseSchema = z.object({
+  uploadUrl: z.string().url(),
+  s3Key: z.string(),
+  expiresIn: z.number(),
+})
+
 // Error response
 export const ErrorResponseSchema = z.object({
   error: z.string(),

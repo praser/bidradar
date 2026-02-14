@@ -14,7 +14,7 @@ Run the bidradar test suites and add new tests.
 | Unit | `pnpm test` | `vitest.config.ts` | Pure logic in packages and apps |
 | Unit (watch) | `pnpm test:watch` | `vitest.config.ts` | Same, with file watching |
 | E2E (local) | `pnpm test:e2e` | `vitest.config.e2e.ts` | API routes against local Docker DB |
-| E2E (live) | `pnpm test:e2e:live` | `vitest.config.e2e.ts` | CLI against live dev Lambda |
+| E2E (live) | `pnpm test:e2e:live` | `vitest.config.e2e.live.ts` | CLI against live dev Lambda |
 
 ### Unit tests
 
@@ -79,9 +79,13 @@ Example locations:
 e2e/health.test.ts
 e2e/auth.test.ts
 e2e/offers.test.ts
-e2e/reconcile.test.ts
 e2e/users.test.ts
 e2e/error-handling.test.ts
+e2e/live/health.test.ts
+e2e/live/auth.test.ts
+e2e/live/query.test.ts
+e2e/live/cli.test.ts
+e2e/live/error-handling.test.ts
 ```
 
 ## Adding a new unit test

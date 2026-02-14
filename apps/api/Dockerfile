@@ -49,6 +49,9 @@ COPY --from=base /app/apps/api/dist/ apps/api/dist/
 # Copy Drizzle migrations so the container can run them at startup if needed
 COPY --from=base /app/packages/db/drizzle/ packages/db/drizzle/
 
+RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
+USER appuser
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

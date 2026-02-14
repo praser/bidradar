@@ -31,14 +31,14 @@ packages/core         ──> (no workspace deps, only zod)
 | `packages/api-contract` | Shared Zod schemas for API request/response validation, sort parser |
 | `packages/db` | Drizzle ORM schema, PostgreSQL repositories (offers, users, property details, auth sessions), filter-to-SQL translator |
 | `packages/cef` | CEF CSV downloader and parser, converts raw CSV rows into domain `Offer` objects via Zod |
-| `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, reconcile, users |
-| `apps/cli` | Commander-based CLI: login, logout, whoami, query, reconcile commands. Bundled with tsup |
+| `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, management (S3 upload URLs), users |
+| `apps/cli` | Commander-based CLI: login, logout, whoami, query, manager (download/upload) commands. Bundled with tsup |
 | `infra/aws` | SST v3 infrastructure: Lambda function URL with secrets |
 
 ### Key data flow
 
-1. **Reconcile**: CEF CSV download -> parse -> compare with DB (find existing, classify new/updated/unchanged) -> batch insert/update/touch/soft-delete
-2. **Query**: Filter DSL string -> tokenize -> parse AST -> translate to Drizzle SQL -> paginated query
+1. **Ingest**: CLI `manager download` fetches CEF CSV -> gets presigned S3 URL from API -> uploads to S3 -> processing Lambda parses CSV -> reconciles with DB (immutable versioned rows: insert new, insert updated with bumped version, insert soft-deleted)
+2. **Query**: Filter DSL string -> tokenize -> parse AST -> translate to Drizzle SQL -> paginated query against `currentOffers` view (latest version per source ID)
 3. **Auth**: CLI creates session -> browser opens Google OAuth -> callback writes JWT to session -> CLI polls for token
 
 ## Development
@@ -95,7 +95,7 @@ pnpm --filter @bidradar/cli build    # Uses tsup (bundles everything)
 ```bash
 pnpm dev:cli -- login
 pnpm dev:cli -- query -f "uf eq 'DF'"
-pnpm dev:cli -- reconcile cef --uf DF
+pnpm dev:cli -- manager download offer-list
 ```
 
 ## Conventions
@@ -127,7 +127,7 @@ pnpm dev:cli -- reconcile cef --uf DF
 - **Repository pattern**: `packages/core` defines interfaces (`OfferRepository`, `UserRepository`), `packages/db` implements them
 - **Clean boundaries**: core has zero workspace deps; db and cef depend only on core; api-contract depends only on core; api composes everything
 - **Factory functions**: Repositories are created via `createOfferRepository()`, `createUserRepository()`, etc.
-- **Streaming**: Reconcile endpoint streams NDJSON progress events; CLI reads with async generator
+- **Immutable offers**: The `offers` table is append-only with versioned rows. Each reconcile inserts new rows (new, updated, soft-deleted). The `currentOffers` view returns the latest version per `sourceId`
 
 ### API
 
@@ -153,15 +153,18 @@ pnpm dev:cli -- reconcile cef --uf DF
 | `packages/core/src/filter/parser.ts` | Filter DSL parser (recursive descent) |
 | `packages/core/src/filter/types.ts` | Filter AST node types, field definitions |
 | `packages/api-contract/src/api-contract.ts` | All API Zod schemas + sort parser |
-| `packages/db/src/schema.ts` | Drizzle schema (offers, users, propertyDetails, authSessions) |
+| `packages/db/src/schema.ts` | Drizzle schema (downloadMetadata, offers, currentOffers view, users, propertyDetails, authSessions) |
 | `packages/db/src/offer-repository.ts` | Offer CRUD with batch operations |
 | `packages/db/src/filter-to-drizzle.ts` | Filter AST -> Drizzle SQL WHERE clause |
 | `packages/cef/src/CefOffer.ts` | CSV row -> Offer via Zod tuple transform |
+| `packages/core/src/cef-file.ts` | CEF file types, S3 key builder/parser, download URL builder |
+| `packages/core/src/process-offers-file.ts` | Parses uploaded CSV buffer, groups by UF, reconciles per state |
 | `apps/api/src/app.ts` | Hono app factory with route registration |
 | `apps/api/src/routes/auth.ts` | Google OAuth flow (session/login/callback/token) |
-| `apps/api/src/routes/reconcile.ts` | NDJSON streaming reconcile endpoint |
+| `apps/api/src/routes/management.ts` | Admin management routes (S3 presigned upload URL) |
 | `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
 | `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
+| `apps/cli/src/commands/management.ts` | Manager command: download CEF files and upload to S3 |
 | `infra/aws/api.ts` | SST Lambda function URL definition + dual env aliases (dev/prod) |
 | `sst.config.ts` | SST app config |
 | `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
@@ -195,7 +198,7 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 - **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, API URLs stored in SSM Parameter Store (`/bidradar/{env}/api-url`)
 - **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
-- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap + GHCR Docker image (`.github/workflows/release.yml`)
+- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap (`.github/workflows/release.yml`)
 
 ### Environments
 
@@ -239,7 +242,7 @@ All commits to `main` must follow the [Conventional Commits](https://www.convent
 2. **Static Checks & Tests** -- build, typecheck, unit tests
 3. **Deploy to Dev** -- `npx sst deploy --stage production`, captures dev URL and Lambda name
 4. **E2E Tests (Dev)** -- runs `pnpm test:e2e:live` against the deployed dev alias
-5. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, publishes Lambda version and promotes `prod` alias, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap, pushes Docker image to GHCR
+5. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, publishes Lambda version and promotes `prod` alias, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap
 6. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
 
 Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
@@ -272,6 +275,7 @@ pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `ADMIN_EMAILS` | Comma-separated admin emails (auto-assigned admin role on first login) |
 | `PORT` | API listen port (default 3000, local only) |
+| `BUCKET_NAME` | S3 bucket name for CEF file uploads (set automatically by SST via `link`) |
 | `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
 | `BIDRADAR_API_URL` | API URL used by E2E live tests to target the deployed dev Lambda |
 | `DEV_API_URL` | Override API URL for E2E live tests (takes precedence over SSM lookup) |

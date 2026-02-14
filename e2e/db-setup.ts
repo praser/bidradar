@@ -1,6 +1,6 @@
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
-import { offers, users, propertyDetails, authSessions } from '../packages/db/src/schema.js'
+import { offers, users, propertyDetails, authSessions, downloadMetadata } from '../packages/db/src/schema.js'
 import { sql } from 'drizzle-orm'
 
 const connectionString =
@@ -24,6 +24,7 @@ export async function cleanDatabase() {
   await db.delete(propertyDetails)
   await db.delete(authSessions)
   await db.delete(offers)
+  await db.delete(downloadMetadata)
   await db.delete(users)
 }
 

@@ -3,6 +3,7 @@ import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
 import { query } from './commands/query.js'
 import { whoami } from './commands/whoami.js'
+import { manager } from './commands/management.js'
 
 declare const __CLI_VERSION__: string
 const version =
@@ -13,5 +14,6 @@ program.addCommand(login)
 program.addCommand(logout)
 program.addCommand(query)
 program.addCommand(whoami)
+program.addCommand(manager)
 
 program.parse()

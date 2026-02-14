@@ -1,5 +1,7 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
+export const bucket = new sst.aws.Bucket("CefDownloads");
+
 export const secrets = {
   DATABASE_URL: new sst.Secret("DatabaseUrl", process.env.DATABASE_URL),
   JWT_SECRET: new sst.Secret("JwtSecret", process.env.JWT_SECRET),
@@ -14,13 +16,14 @@ const api = new sst.aws.Function("Api", {
   timeout: "3 minutes",
   memory: "512 MB",
   url: true,
-  link: Object.values(secrets),
+  link: [...Object.values(secrets), bucket],
   environment: {
     DATABASE_URL: secrets.DATABASE_URL.value,
     JWT_SECRET: secrets.JWT_SECRET.value,
     GOOGLE_CLIENT_ID: secrets.GOOGLE_CLIENT_ID.value,
     GOOGLE_CLIENT_SECRET: secrets.GOOGLE_CLIENT_SECRET.value,
     ADMIN_EMAILS: secrets.ADMIN_EMAILS.value,
+    BUCKET_NAME: bucket.name,
   },
 });
 
