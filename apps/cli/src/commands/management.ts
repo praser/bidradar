@@ -64,3 +64,6 @@ const download = new Command('download')
 export const manager = new Command('manager')
   .description('Management commands (admin only)')
   .addCommand(download)
+  .action(function (this: Command) {
+    this.help()
+  })
