@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { liveRequest, getDevApiUrl } from './helpers.js'
 
 describe('Live: Query offers', () => {
-  beforeAll(() => {
-    getDevApiUrl()
+  beforeAll(async () => {
+    await getDevApiUrl()
   })
 
   it('returns 401 for unauthenticated query', async () => {

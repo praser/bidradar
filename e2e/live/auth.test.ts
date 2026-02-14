@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { liveRequest, getDevApiUrl } from './helpers.js'
 
 describe('Live: Auth endpoints', () => {
-  beforeAll(() => {
-    getDevApiUrl()
+  beforeAll(async () => {
+    await getDevApiUrl()
   })
 
   describe('POST /auth/session', () => {

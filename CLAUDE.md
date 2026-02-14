@@ -192,7 +192,7 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 ## Infrastructure
 
 - **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
-- **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret
+- **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, API URLs stored in SSM Parameter Store (`/bidradar/{env}/api-url`)
 - **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
 - **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap + GHCR Docker image (`.github/workflows/release.yml`)
@@ -201,11 +201,15 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 
 The API runs on a single Lambda function with two aliases (`dev` and `prod`), each with its own function URL. Both environments share the same PostgreSQL database and SST secrets.
 
-| Environment | Lambda alias | Function URL export | Updated by |
+| Environment | Lambda alias | SSM parameter | Updated by |
 |---|---|---|---|
-| `dev` | `dev` (tracks `$LATEST`) | `devApiUrl` | Every deploy via SST (automatic on merge to `main`) |
-| `prod` | `prod` (pinned to a published version) | `prodApiUrl` | Release pipeline promotes after E2E tests pass |
+| `dev` | `dev` (tracks `$LATEST`) | `/bidradar/dev/api-url` | Every deploy via SST (automatic on merge to `main`) |
+| `prod` | `prod` (pinned to a published version) | `/bidradar/prod/api-url` | Every deploy via SST |
+| Personal (`--stage <name>`) | `dev` | `/bidradar/<name>/api-url` | Personal stage deploy |
 
+- SSM parameters are the single source of truth for API URLs — created by SST during deploy (`infra/aws/api.ts`)
+- The release pipeline reads URLs from SSM instead of using `aws lambda get-function-url-config`
+- E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment)
 - The release pipeline publishes a new Lambda version from `$LATEST` and updates the `prod` alias to point to it
 - Rollback: `aws lambda update-alias --function-name <name> --name prod --function-version <previous-version>`
 - The CLI default API URL is baked in at build time via the `BIDRADAR_DEFAULT_API_URL` env var in `tsup.config.ts`. Release builds use the prod function URL; local dev defaults to `http://localhost:3000`
@@ -270,3 +274,5 @@ pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.
 | `PORT` | API listen port (default 3000, local only) |
 | `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
 | `BIDRADAR_API_URL` | API URL used by E2E live tests to target the deployed dev Lambda |
+| `DEV_API_URL` | Override API URL for E2E live tests (takes precedence over SSM lookup) |
+| `BIDRADAR_ENV` | Environment name for SSM parameter lookup in E2E live tests (default `dev`) |

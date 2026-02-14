@@ -1,6 +1,6 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
-const secrets = {
+export const secrets = {
   DATABASE_URL: new sst.Secret("DatabaseUrl", process.env.DATABASE_URL),
   JWT_SECRET: new sst.Secret("JwtSecret", process.env.JWT_SECRET),
   GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId", process.env.GOOGLE_CLIENT_ID),
@@ -83,6 +83,32 @@ new aws.lambda.Permission("ApiProdInvoke", {
   principal: "*",
   qualifier: "prod",
 }, { dependsOn: [prodAlias] });
+
+// ---------------------------------------------------------------------------
+// SSM Parameters — single source of truth for API URLs
+// ---------------------------------------------------------------------------
+// Production stage creates two parameters (one per alias).
+// Personal stages create one parameter using the stage name.
+// ---------------------------------------------------------------------------
+
+if ($app.stage === "production") {
+  new aws.ssm.Parameter("SsmDevApiUrl", {
+    name: "/bidradar/dev/api-url",
+    type: "String",
+    value: devUrl.functionUrl,
+  });
+  new aws.ssm.Parameter("SsmProdApiUrl", {
+    name: "/bidradar/prod/api-url",
+    type: "String",
+    value: prodUrl.functionUrl,
+  });
+} else {
+  new aws.ssm.Parameter("SsmApiUrl", {
+    name: `/bidradar/${$app.stage}/api-url`,
+    type: "String",
+    value: devUrl.functionUrl,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Exports
