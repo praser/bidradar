@@ -27,9 +27,9 @@ describe('parseSort', () => {
     ])
   })
 
-  it('parses updatedAt field', () => {
-    expect(parseSort('updatedAt desc')).toEqual([
-      { field: 'updatedAt', direction: 'desc' },
+  it('parses createdAt field', () => {
+    expect(parseSort('createdAt desc')).toEqual([
+      { field: 'createdAt', direction: 'desc' },
     ])
   })
 
@@ -50,10 +50,9 @@ describe('OffersQuerySchema', () => {
   it('applies defaults', () => {
     const result = OffersQuerySchema.parse({})
     expect(result).toEqual({
-      includeRemoved: false,
       page: 1,
       pageSize: 50,
-      sort: 'updatedAt desc',
+      sort: 'createdAt desc',
     })
   })
 

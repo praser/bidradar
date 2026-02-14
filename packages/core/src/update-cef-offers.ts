@@ -23,7 +23,7 @@ export interface DownloadMetadata {
 }
 
 export interface DownloadMetadataRepository {
-  insert(metadata: DownloadMetadata): Promise<void>
+  insert(metadata: DownloadMetadata): Promise<string>
 }
 
 export interface UpdateCefOffersDeps {
@@ -60,7 +60,7 @@ export async function updateCefOffers(
     contentType: 'text/csv',
   })
 
-  await deps.metadataRepo.insert({
+  const downloadId = await deps.metadataRepo.insert({
     fileName: `${date}.${uf}.${runId}.csv`,
     fileExtension: 'csv',
     fileSize: content.length,
@@ -85,7 +85,7 @@ export async function updateCefOffers(
 
   const results = new Map<string, ReconcileResult>()
   for (const [state, stateOffers] of offersByUf) {
-    const result = await reconcileOffers(state, stateOffers, deps.offerRepo)
+    const result = await reconcileOffers(state, stateOffers, deps.offerRepo, downloadId)
     results.set(state, result)
   }
 

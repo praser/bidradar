@@ -41,14 +41,12 @@ function createMockDeps() {
     bucketKey: 'cef-downloads/offer-list/2026-02-13.geral.csv',
   })
 
-  const insert: Mock = vi.fn().mockResolvedValue(undefined)
+  const insert: Mock = vi.fn().mockResolvedValue('fake-download-id')
 
   const offerRepo: OfferRepository = {
     findExistingOffers: vi.fn().mockResolvedValue(new Map()),
-    insertMany: vi.fn().mockResolvedValue(undefined),
-    updateMany: vi.fn().mockResolvedValue(undefined),
-    touchManyLastSeen: vi.fn().mockResolvedValue(undefined),
-    softDeleteMissing: vi.fn().mockResolvedValue(0),
+    insertVersions: vi.fn().mockResolvedValue(undefined),
+    insertDeleteVersions: vi.fn().mockResolvedValue(0),
   }
 
   const deps: UpdateCefOffersDeps = {
@@ -100,6 +98,20 @@ describe('updateCefOffers', () => {
     expect(result.fileSize).toBe(11)
     expect(result.totalOffers).toBe(1)
     expect(result.states).toBe(1)
+  })
+
+  it('passes download ID to reconcileOffers', async () => {
+    const { deps, parseOffers, offerRepo } = createMockDeps()
+    parseOffers.mockResolvedValue([makeOffer()])
+
+    await updateCefOffers(deps)
+
+    // reconcileOffers calls insertDeleteVersions with the downloadId
+    expect(offerRepo.insertDeleteVersions).toHaveBeenCalledWith(
+      'DF',
+      expect.any(Set),
+      'fake-download-id',
+    )
   })
 
   it('groups offers by UF and reconciles each state independently', async () => {
@@ -167,6 +179,7 @@ describe('updateCefOffers', () => {
     })
     insert.mockImplementation(async () => {
       callOrder.push('insert')
+      return 'fake-download-id'
     })
 
     await updateCefOffers(deps)

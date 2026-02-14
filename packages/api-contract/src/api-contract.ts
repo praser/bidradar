@@ -47,10 +47,9 @@ export const AuthTokenResponseSchema = z.object({
 // GET /offers
 export const OffersQuerySchema = z.object({
   filter: z.string().max(2000).optional(),
-  includeRemoved: z.coerce.boolean().optional().default(false),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(1000).optional().default(50),
-  sort: z.string().default('updatedAt desc'),
+  sort: z.string().default('createdAt desc'),
 })
 
 export const OffersResponseSchema = z.object({

@@ -22,111 +22,123 @@ function makeOffer(overrides: Partial<Offer> = {}): Offer {
 }
 
 function createMockRepo(
-  existingMap: Map<string, { internalId: string; version: number; changed: boolean }> = new Map(),
+  existingMap: Map<string, { latestVersion: number; isActive: boolean; changed: boolean }> = new Map(),
 ): OfferRepository {
   return {
     findExistingOffers: vi.fn().mockResolvedValue(existingMap),
-    insertMany: vi.fn().mockResolvedValue(undefined),
-    updateMany: vi.fn().mockResolvedValue(undefined),
-    touchManyLastSeen: vi.fn().mockResolvedValue(undefined),
-    softDeleteMissing: vi.fn().mockResolvedValue(0),
+    insertVersions: vi.fn().mockResolvedValue(undefined),
+    insertDeleteVersions: vi.fn().mockResolvedValue(0),
   }
 }
+
+const DOWNLOAD_ID = 'test-download-id'
 
 describe('reconcileOffers', () => {
   it('inserts new offers', async () => {
     const repo = createMockRepo()
     const offers = [makeOffer({ id: 'new-1' }), makeOffer({ id: 'new-2' })]
 
-    const result = await reconcileOffers('DF', offers, repo)
+    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
 
     expect(result.created).toBe(2)
     expect(result.updated).toBe(0)
     expect(result.skipped).toBe(0)
-    expect(repo.insertMany).toHaveBeenCalledWith(offers)
+    expect(repo.insertVersions).toHaveBeenCalledWith(
+      [
+        { offer: offers[0], version: 1, operation: 'insert' },
+        { offer: offers[1], version: 1, operation: 'insert' },
+      ],
+      DOWNLOAD_ID,
+    )
   })
 
   it('updates changed offers', async () => {
     const existingMap = new Map([
-      ['offer-1', { internalId: 'uuid-1', version: 1, changed: true }],
+      ['offer-1', { latestVersion: 1, isActive: true, changed: true }],
     ])
     const repo = createMockRepo(existingMap)
     const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', offers, repo)
+    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
 
     expect(result.created).toBe(0)
     expect(result.updated).toBe(1)
     expect(result.skipped).toBe(0)
-    expect(repo.updateMany).toHaveBeenCalledWith([
-      { internalId: 'uuid-1', version: 1, offer: offers[0] },
-    ])
+    expect(repo.insertVersions).toHaveBeenCalledWith(
+      [{ offer: offers[0], version: 2, operation: 'update' }],
+      DOWNLOAD_ID,
+    )
   })
 
-  it('touches unchanged offers', async () => {
+  it('skips unchanged offers', async () => {
     const existingMap = new Map([
-      ['offer-1', { internalId: 'uuid-1', version: 1, changed: false }],
+      ['offer-1', { latestVersion: 1, isActive: true, changed: false }],
     ])
     const repo = createMockRepo(existingMap)
     const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', offers, repo)
+    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
 
     expect(result.created).toBe(0)
     expect(result.updated).toBe(0)
     expect(result.skipped).toBe(1)
-    expect(repo.touchManyLastSeen).toHaveBeenCalledWith(['uuid-1'])
+    expect(repo.insertVersions).not.toHaveBeenCalled()
   })
 
-  it('soft-deletes missing offers', async () => {
-    const repo = createMockRepo()
-    ;(repo.softDeleteMissing as ReturnType<typeof vi.fn>).mockResolvedValue(3)
+  it('re-inserts previously deleted offers', async () => {
+    const existingMap = new Map([
+      ['offer-1', { latestVersion: 3, isActive: false, changed: true }],
+    ])
+    const repo = createMockRepo(existingMap)
+    const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', [makeOffer()], repo)
+    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+
+    expect(result.created).toBe(1)
+    expect(result.updated).toBe(0)
+    expect(repo.insertVersions).toHaveBeenCalledWith(
+      [{ offer: offers[0], version: 4, operation: 'insert' }],
+      DOWNLOAD_ID,
+    )
+  })
+
+  it('inserts delete versions for missing offers', async () => {
+    const repo = createMockRepo()
+    ;(repo.insertDeleteVersions as ReturnType<typeof vi.fn>).mockResolvedValue(3)
+
+    const result = await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID)
 
     expect(result.removed).toBe(3)
-    expect(repo.softDeleteMissing).toHaveBeenCalledWith('DF', new Set(['offer-1']))
+    expect(repo.insertDeleteVersions).toHaveBeenCalledWith(
+      'DF',
+      new Set(['offer-1']),
+      DOWNLOAD_ID,
+    )
   })
 
-  it('does not call insertMany when nothing to insert', async () => {
+  it('does not call insertVersions when nothing to insert or update', async () => {
     const existingMap = new Map([
-      ['offer-1', { internalId: 'uuid-1', version: 1, changed: false }],
+      ['offer-1', { latestVersion: 1, isActive: true, changed: false }],
     ])
     const repo = createMockRepo(existingMap)
 
-    await reconcileOffers('DF', [makeOffer()], repo)
+    await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID)
 
-    expect(repo.insertMany).not.toHaveBeenCalled()
-  })
-
-  it('does not call updateMany when nothing to update', async () => {
-    const repo = createMockRepo()
-
-    await reconcileOffers('DF', [makeOffer()], repo)
-
-    expect(repo.updateMany).not.toHaveBeenCalled()
-  })
-
-  it('does not call touchManyLastSeen when nothing to touch', async () => {
-    const repo = createMockRepo()
-
-    await reconcileOffers('DF', [makeOffer()], repo)
-
-    expect(repo.touchManyLastSeen).not.toHaveBeenCalled()
+    expect(repo.insertVersions).not.toHaveBeenCalled()
   })
 
   it('reports progress steps', async () => {
     const repo = createMockRepo()
     const steps: ReconcileStep[] = []
 
-    await reconcileOffers('DF', [makeOffer()], repo, (step) => steps.push(step))
+    await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID, (step) =>
+      steps.push(step),
+    )
 
     expect(steps.map((s) => s.step)).toEqual([
       'classifying',
       'classified',
       'inserting',
-      'updating',
-      'touching',
       'removing',
     ])
   })
@@ -134,15 +146,15 @@ describe('reconcileOffers', () => {
   it('handles empty offers array', async () => {
     const repo = createMockRepo()
 
-    const result = await reconcileOffers('DF', [], repo)
+    const result = await reconcileOffers('DF', [], repo, DOWNLOAD_ID)
 
     expect(result).toEqual({ created: 0, updated: 0, skipped: 0, removed: 0 })
   })
 
-  it('handles mixed insert/update/touch scenario', async () => {
+  it('handles mixed insert/update/skip scenario', async () => {
     const existingMap = new Map([
-      ['existing-changed', { internalId: 'uuid-1', version: 2, changed: true }],
-      ['existing-same', { internalId: 'uuid-2', version: 1, changed: false }],
+      ['existing-changed', { latestVersion: 2, isActive: true, changed: true }],
+      ['existing-same', { latestVersion: 1, isActive: true, changed: false }],
     ])
     const repo = createMockRepo(existingMap)
     const offers = [
@@ -151,7 +163,7 @@ describe('reconcileOffers', () => {
       makeOffer({ id: 'existing-same' }),
     ]
 
-    const result = await reconcileOffers('DF', offers, repo)
+    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
 
     expect(result.created).toBe(1)
     expect(result.updated).toBe(1)
