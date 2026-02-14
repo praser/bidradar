@@ -59,7 +59,7 @@ jobs:
           fi
 
           # Dry-run: get the next version without writing files
-          VERSION=$(node scripts/bump-version.mjs --dry)
+          VERSION=$(node scripts/bump-version.mjs --dry 2>/dev/null || true)
           if [ -z "$VERSION" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Could not determine version — skipping"
