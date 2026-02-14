@@ -22,6 +22,7 @@
     "act:release": "act push -W .github/workflows/release.yml --secret-file .env --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY --secret AWS_SESSION_TOKEN --secret AWS_REGION"
   },
   "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.990.0",
     "@hono/node-server": "^1.19.9",
     "@types/node": "^22.19.11",
     "drizzle-orm": "^0.45.1",

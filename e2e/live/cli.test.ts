@@ -3,8 +3,8 @@ import { existsSync } from 'node:fs'
 import { getDevApiUrl, getCliBinPath, runCli } from './helpers.js'
 
 describe('Live: CLI commands', () => {
-  beforeAll(() => {
-    getDevApiUrl()
+  beforeAll(async () => {
+    await getDevApiUrl()
 
     const binPath = getCliBinPath()
     if (!existsSync(binPath)) {
@@ -30,7 +30,6 @@ describe('Live: CLI commands', () => {
       expect(result.stdout).toContain('logout')
       expect(result.stdout).toContain('query')
       expect(result.stdout).toContain('whoami')
-      expect(result.stdout).toContain('reconcile')
     })
   })
 
@@ -72,20 +71,4 @@ describe('Live: CLI commands', () => {
     })
   })
 
-  describe('bidradar reconcile --help', () => {
-    it('prints reconcile help text', async () => {
-      const result = await runCli(['reconcile', '--help'])
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('cef')
-    })
-  })
-
-  describe('bidradar reconcile cef (unauthenticated)', () => {
-    it('fails with auth error when not logged in', async () => {
-      const result = await runCli(['reconcile', 'cef'])
-      expect(result.exitCode).not.toBe(0)
-      const output = result.stdout + result.stderr
-      expect(output).toContain('Not authenticated')
-    })
-  })
 })

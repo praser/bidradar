@@ -3,17 +3,43 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
+
+let cachedApiUrl: string | undefined
 
 /**
- * Base URL for the dev Lambda, set via DEV_API_URL environment variable.
- * Tests will throw if this is not set.
+ * Base URL for the dev Lambda.
+ *
+ * Resolution order:
+ * 1. `DEV_API_URL` environment variable (backward compat / CI override)
+ * 2. SSM Parameter Store `/bidradar/{env}/api-url` (env from `BIDRADAR_ENV`, default `dev`)
+ *
+ * The result is cached so SSM is called at most once per test run.
  */
-export function getDevApiUrl(): string {
-  const url = process.env['DEV_API_URL']
-  if (!url) {
-    throw new Error('DEV_API_URL environment variable is required for live E2E tests')
+export async function getDevApiUrl(): Promise<string> {
+  if (cachedApiUrl) return cachedApiUrl
+
+  const envUrl = process.env['DEV_API_URL']
+  if (envUrl) {
+    cachedApiUrl = envUrl.replace(/\/$/, '')
+    return cachedApiUrl
   }
-  return url.replace(/\/$/, '')
+
+  const env = process.env['BIDRADAR_ENV'] ?? 'dev'
+  const paramName = `/bidradar/${env}/api-url`
+
+  const ssm = new SSMClient()
+  const result = await ssm.send(new GetParameterCommand({ Name: paramName }))
+  const value = result.Parameter?.Value
+
+  if (!value) {
+    throw new Error(
+      `Could not resolve API URL: DEV_API_URL env var is not set and SSM parameter ${paramName} has no value`,
+    )
+  }
+
+  cachedApiUrl = value.replace(/\/$/, '')
+  return cachedApiUrl
 }
 
 /**
@@ -23,7 +49,7 @@ export async function liveRequest(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const baseUrl = getDevApiUrl()
+  const baseUrl = await getDevApiUrl()
   const url = `${baseUrl}${path}`
   return fetch(url, init)
 }
@@ -45,7 +71,7 @@ export async function runCli(
   args: string[],
   env?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const devApiUrl = getDevApiUrl()
+  const devApiUrl = await getDevApiUrl()
   const tempHome = join(tmpdir(), `bidradar-e2e-${randomUUID()}`)
   const configDir = join(tempHome, '.bidradar')
   await mkdir(configDir, { recursive: true })

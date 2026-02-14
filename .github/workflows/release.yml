@@ -146,13 +146,12 @@ jobs:
             exit 1
           fi
 
-          DEV_URL=$(aws lambda get-function-url-config \
-            --function-name "$LAMBDA_NAME" \
-            --qualifier dev \
-            --query 'FunctionUrl' --output text)
+          DEV_URL=$(aws ssm get-parameter \
+            --name /bidradar/dev/api-url \
+            --query 'Parameter.Value' --output text)
 
           if [ -z "$DEV_URL" ] || [ "$DEV_URL" = "None" ]; then
-            echo "::error::Could not determine dev API URL"
+            echo "::error::Could not determine dev API URL from SSM"
             exit 1
           fi
 
@@ -272,13 +271,10 @@ jobs:
       # --- Get prod URL for CLI build ---
       - name: Get prod API URL
         id: prod_url
-        env:
-          LAMBDA_NAME: ${{ needs.deploy-dev.outputs.lambda_name }}
         run: |
-          PROD_URL=$(aws lambda get-function-url-config \
-            --function-name "$LAMBDA_NAME" \
-            --qualifier prod \
-            --query 'FunctionUrl' --output text)
+          PROD_URL=$(aws ssm get-parameter \
+            --name /bidradar/prod/api-url \
+            --query 'Parameter.Value' --output text)
           echo "prod_api_url=$PROD_URL" >> "$GITHUB_OUTPUT"
 
       # --- Build all packages ---

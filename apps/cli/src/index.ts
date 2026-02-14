@@ -1,16 +1,16 @@
 import { program } from 'commander'
 import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
-import { reconcile } from './commands/reconcile.js'
 import { query } from './commands/query.js'
 import { whoami } from './commands/whoami.js'
 
 declare const __CLI_VERSION__: string
-program.name('bidradar').version(__CLI_VERSION__)
+const version =
+  typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : '0.0.0-dev'
+program.name('bidradar').version(version)
 
 program.addCommand(login)
 program.addCommand(logout)
-program.addCommand(reconcile)
 program.addCommand(query)
 program.addCommand(whoami)
 

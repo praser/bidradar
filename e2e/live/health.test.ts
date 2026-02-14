@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { liveRequest, getDevApiUrl } from './helpers.js'
 
 describe('Live: GET /health', () => {
-  beforeAll(() => {
-    // Will throw if DEV_API_URL is not set, causing all tests to skip
-    getDevApiUrl()
+  beforeAll(async () => {
+    // Will throw if API URL cannot be resolved, causing all tests to skip
+    await getDevApiUrl()
   })
 
   it('returns 200 with status ok', async () => {

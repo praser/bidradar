@@ -2,11 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   parseSort,
   OffersQuerySchema,
-  ReconcileParamsSchema,
-  ReconcileQuerySchema,
   AuthSessionResponseSchema,
   AuthTokenResponseSchema,
-  ReconcileEventSchema,
   ErrorResponseSchema,
 } from './api-contract.js'
 
@@ -88,26 +85,6 @@ describe('OffersQuerySchema', () => {
   })
 })
 
-describe('ReconcileParamsSchema', () => {
-  it('accepts cef', () => {
-    expect(ReconcileParamsSchema.parse({ source: 'cef' })).toEqual({ source: 'cef' })
-  })
-
-  it('rejects unknown source', () => {
-    expect(() => ReconcileParamsSchema.parse({ source: 'unknown' })).toThrow()
-  })
-})
-
-describe('ReconcileQuerySchema', () => {
-  it('accepts optional uf', () => {
-    expect(ReconcileQuerySchema.parse({})).toEqual({})
-  })
-
-  it('accepts uf string', () => {
-    expect(ReconcileQuerySchema.parse({ uf: 'SP' })).toEqual({ uf: 'SP' })
-  })
-})
-
 describe('AuthSessionResponseSchema', () => {
   it('validates session response', () => {
     const result = AuthSessionResponseSchema.parse({
@@ -130,41 +107,6 @@ describe('AuthTokenResponseSchema', () => {
     })
     expect(result.token).toBe('jwt-token')
     expect(result.user.role).toBe('free')
-  })
-})
-
-describe('ReconcileEventSchema', () => {
-  it('validates start event', () => {
-    const result = ReconcileEventSchema.parse({ type: 'start', total: 100 })
-    expect(result.type).toBe('start')
-  })
-
-  it('validates progress event', () => {
-    const result = ReconcileEventSchema.parse({
-      type: 'progress',
-      step: 'classifying',
-      detail: { total: 50 },
-    })
-    expect(result.type).toBe('progress')
-  })
-
-  it('validates done event', () => {
-    const result = ReconcileEventSchema.parse({
-      type: 'done',
-      created: 10,
-      updated: 5,
-      skipped: 85,
-      removed: 2,
-    })
-    expect(result.type).toBe('done')
-  })
-
-  it('validates error event', () => {
-    const result = ReconcileEventSchema.parse({
-      type: 'error',
-      message: 'Download failed',
-    })
-    expect(result.type).toBe('error')
   })
 })
 

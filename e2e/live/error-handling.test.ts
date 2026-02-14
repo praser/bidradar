@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { liveRequest, getDevApiUrl } from './helpers.js'
 
 describe('Live: Error handling', () => {
-  beforeAll(() => {
-    getDevApiUrl()
+  beforeAll(async () => {
+    await getDevApiUrl()
   })
 
   it('returns 401 for protected routes without auth', async () => {
@@ -40,12 +40,6 @@ describe('Live: Error handling', () => {
 
   it('returns 401 for unknown routes without auth', async () => {
     const res = await liveRequest('/nonexistent-route')
-    expect(res.status).toBe(401)
-  })
-
-  it('returns 403 for non-admin accessing reconcile without proper role', async () => {
-    // Without auth, should be 401 first
-    const res = await liveRequest('/reconcile/cef', { method: 'POST' })
     expect(res.status).toBe(401)
   })
 
