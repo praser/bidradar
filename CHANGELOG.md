@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-14
+
+### Features
+
+- Split UpdateCefOffers Lambda into download + process with CLI upload (fb19d79)
+
+### Bug Fixes
+
+- Improve CI efficiency and production hardening (4d2caca)
+- Show help with available file types when download is run without args (f2a08a4)
+- Show help instead of error when running manager without subcommand (973b9b9)
+
+### Refactoring
+
+- Rename management command to manager (259bf25)
+
+### Documentation
+
+- Update CLAUDE.md and skills for management/manager refactoring (a88a43e)
+
+### Tests
+
+- Add 13 new E2E tests for auth, filters, and management (f8f73e7)
+
+### Chores
+
+- Remove Docker image build from release pipeline (b118eeb)
+
+### Other
+
+- Merge pull request #16 from praser/feat-sync-cef-offers (8588e0f)
+
 ## [0.2.0] - 2026-02-14
 
 ### Features
