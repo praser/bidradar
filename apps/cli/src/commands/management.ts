@@ -61,6 +61,6 @@ const download = new Command('download')
     }
   })
 
-export const management = new Command('management')
+export const manager = new Command('manager')
   .description('Management commands (admin only)')
   .addCommand(download)

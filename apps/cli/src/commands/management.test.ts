@@ -19,7 +19,7 @@ vi.mock('../lib/apiClient.js', () => ({
 }))
 
 import { PassThrough } from 'node:stream'
-import { management } from './management.js'
+import { manager } from './management.js'
 import { downloadFile } from '@bidradar/cef'
 import { apiRequest, ApiError } from '../lib/apiClient.js'
 
@@ -33,7 +33,7 @@ vi.mock('ora', () => ({
   }),
 }))
 
-describe('management download command', () => {
+describe('manager download command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.exitCode = undefined
@@ -56,12 +56,12 @@ describe('management download command', () => {
   })
 
   it('has download subcommand', () => {
-    const downloadCmd = management.commands.find((c) => c.name() === 'download')
+    const downloadCmd = manager.commands.find((c) => c.name() === 'download')
     expect(downloadCmd).toBeDefined()
   })
 
   it('downloads, gets presigned URL, and uploads', async () => {
-    await management.parseAsync(['download', 'offer-list'], { from: 'user' })
+    await manager.parseAsync(['download', 'offer-list'], { from: 'user' })
 
     expect(downloadFile).toHaveBeenCalledWith('geral')
     expect(apiRequest).toHaveBeenCalledWith('POST', '/management/upload-url', {
@@ -82,7 +82,7 @@ describe('management download command', () => {
       new MockApiError(401, 'UNAUTHORIZED', 'Not authenticated'),
     )
 
-    await management.parseAsync(['download', 'offer-list'], { from: 'user' })
+    await manager.parseAsync(['download', 'offer-list'], { from: 'user' })
 
     expect(process.exitCode).toBe(1)
   })
@@ -93,7 +93,7 @@ describe('management download command', () => {
       new MockApiError(403, 'FORBIDDEN', 'Insufficient permissions'),
     )
 
-    await management.parseAsync(['download', 'offer-list'], { from: 'user' })
+    await manager.parseAsync(['download', 'offer-list'], { from: 'user' })
 
     expect(process.exitCode).toBe(1)
   })
