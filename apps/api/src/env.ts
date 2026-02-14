@@ -18,6 +18,7 @@ const envSchema = z.object({
     .string()
     .default('')
     .transform((s) => (s.length > 0 ? s.split(',').map((e) => e.trim()) : [])),
+  BUCKET_NAME: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

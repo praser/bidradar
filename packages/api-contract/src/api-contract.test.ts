@@ -5,6 +5,8 @@ import {
   AuthSessionResponseSchema,
   AuthTokenResponseSchema,
   ErrorResponseSchema,
+  UploadUrlRequestSchema,
+  UploadUrlResponseSchema,
 } from './api-contract.js'
 
 describe('parseSort', () => {
@@ -106,6 +108,44 @@ describe('AuthTokenResponseSchema', () => {
     })
     expect(result.token).toBe('jwt-token')
     expect(result.user.role).toBe('free')
+  })
+})
+
+describe('UploadUrlRequestSchema', () => {
+  it('accepts offer-list file type', () => {
+    const result = UploadUrlRequestSchema.parse({ fileType: 'offer-list' })
+    expect(result.fileType).toBe('offer-list')
+  })
+
+  it('rejects unknown file type', () => {
+    expect(() =>
+      UploadUrlRequestSchema.parse({ fileType: 'unknown' }),
+    ).toThrow()
+  })
+})
+
+describe('UploadUrlResponseSchema', () => {
+  it('validates upload URL response', () => {
+    const result = UploadUrlResponseSchema.parse({
+      uploadUrl: 'https://s3.amazonaws.com/presigned-url',
+      s3Key: 'cef-downloads/offer-list/2026-02-14.geral.abc12345.csv',
+      expiresIn: 300,
+    })
+    expect(result.uploadUrl).toBe('https://s3.amazonaws.com/presigned-url')
+    expect(result.s3Key).toBe(
+      'cef-downloads/offer-list/2026-02-14.geral.abc12345.csv',
+    )
+    expect(result.expiresIn).toBe(300)
+  })
+
+  it('rejects invalid URL', () => {
+    expect(() =>
+      UploadUrlResponseSchema.parse({
+        uploadUrl: 'not-a-url',
+        s3Key: 'key',
+        expiresIn: 300,
+      }),
+    ).toThrow()
   })
 })
 

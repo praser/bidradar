@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/errorHandler.js'
 import { authRoutes } from './routes/auth.js'
 import { offerRoutes } from './routes/offers.js'
 import { userRoutes } from './routes/users.js'
+import { managementRoutes } from './routes/management.js'
 import type { Env } from './env.js'
 
 export function createApp(env: Env) {
@@ -26,6 +27,7 @@ export function createApp(env: Env) {
   authenticated.use('*', authenticate(env.JWT_SECRET))
   authenticated.route('/offers', offerRoutes())
   authenticated.route('/users', userRoutes())
+  authenticated.route('/management', managementRoutes(env))
 
   app.route('/', authenticated)
 

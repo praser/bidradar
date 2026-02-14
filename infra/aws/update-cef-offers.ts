@@ -1,13 +1,24 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
-import { secrets } from "./api.js";
+import { bucket, secrets } from "./api.js";
 
-const bucket = new sst.aws.Bucket("CefDownloads");
-
-new sst.aws.Cron("UpdateCefOffers", {
+new sst.aws.Cron("DownloadCefOffers", {
   schedule: "cron(0 10 * * ? *)",
   job: {
-    handler: "apps/cef-lambdas/src/update-offers.handler",
+    handler: "apps/cef-lambdas/src/download-offers.handler",
+    runtime: "nodejs22.x",
+    timeout: "5 minutes",
+    memory: "512 MB",
+    link: [bucket],
+    environment: {
+      BUCKET_NAME: bucket.name,
+    },
+  },
+});
+
+bucket.subscribe(
+  {
+    handler: "apps/cef-lambdas/src/process-offers.handler",
     runtime: "nodejs22.x",
     timeout: "5 minutes",
     memory: "512 MB",
@@ -17,6 +28,9 @@ new sst.aws.Cron("UpdateCefOffers", {
       BUCKET_NAME: bucket.name,
     },
   },
-});
-
-export { bucket };
+  {
+    events: ["s3:ObjectCreated:*"],
+    filterPrefix: "cef-downloads/offer-list/",
+    filterSuffix: ".csv",
+  },
+);

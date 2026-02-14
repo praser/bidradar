@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import type { FileStore } from '@bidradar/core'
 
 export function createS3FileStore(bucketName: string): FileStore {
@@ -15,6 +15,16 @@ export function createS3FileStore(bucketName: string): FileStore {
         }),
       )
       return { bucketName, bucketKey: key }
+    },
+
+    async get(key: string): Promise<Buffer> {
+      const response = await client.send(
+        new GetObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+        }),
+      )
+      return Buffer.from(await response.Body!.transformToByteArray())
     },
   }
 }
