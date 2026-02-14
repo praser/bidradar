@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-14
+
+### Features
+
+- Add new CEF file downloads with content hash dedup (7abd617)
+
+### Other
+
+- Merge pull request #17 from praser/feat-download-more-files (b8cbd25)
+
 ## [0.3.0] - 2026-02-14
 
 ### Features
