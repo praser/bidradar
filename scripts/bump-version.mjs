@@ -4,6 +4,11 @@
  * Determines the next semver version from conventional commits since the last
  * git tag, then updates every package.json in the monorepo.
  *
+ * 1. Reads current version from the root package.json
+ * 2. Determines bump type (major/minor/patch) from conventional commits
+ * 3. Fetches all existing tags from the remote in a single call
+ * 4. Increments until it finds a version that doesn't conflict
+ *
  * Usage:
  *   node scripts/bump-version.mjs          # auto-detect bump type
  *   node scripts/bump-version.mjs --dry    # print next version without writing
@@ -29,26 +34,50 @@ const PACKAGE_PATHS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Git helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
 function git(cmd) {
   return execSync(`git ${cmd}`, { cwd: ROOT, encoding: "utf-8" }).trim();
 }
 
-function getLatestTag() {
+function getCurrentVersion() {
+  const pkg = JSON.parse(
+    readFileSync(resolve(ROOT, "package.json"), "utf-8"),
+  );
+  return pkg.version;
+}
+
+/** Single network call — returns a Set of version strings (without "v" prefix). */
+function getRemoteTagVersions() {
   try {
-    return git("describe --tags --abbrev=0");
+    const output = git("ls-remote --tags origin");
+    if (!output) return new Set();
+
+    const versions = new Set();
+    for (const line of output.split("\n")) {
+      const match = line.match(/refs\/tags\/v(\d+\.\d+\.\d+)$/);
+      if (match) {
+        versions.add(match[1]);
+      }
+    }
+    return versions;
   } catch {
-    return null;
+    return new Set();
   }
 }
 
-function getCommitsSince(tag) {
-  const range = tag ? `${tag}..HEAD` : "HEAD";
-  const log = git(`log ${range} --pretty="format:%s"`);
-  if (!log) return [];
-  return log.split("\n").filter(Boolean);
+function getCommitsSince(version) {
+  try {
+    const log = git(`log v${version}..HEAD --pretty="format:%s"`);
+    if (!log) return [];
+    return log.split("\n").filter(Boolean);
+  } catch {
+    // Tag doesn't exist locally — fall back to all commits
+    const log = git('log --pretty="format:%s"');
+    if (!log) return [];
+    return log.split("\n").filter(Boolean);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +139,24 @@ function applyBump(version, bump) {
   }
 }
 
+/**
+ * Starting from the initial bump, increment the bumped component until the
+ * version doesn't exist in the remote tags.
+ *
+ *   bump=patch:  0.0.2 → 0.0.3 → 0.0.4 → ...
+ *   bump=minor:  0.1.0 → 0.2.0 → 0.3.0 → ...
+ *   bump=major:  1.0.0 → 2.0.0 → 3.0.0 → ...
+ */
+function findAvailableVersion(current, bump, existingVersions) {
+  let candidate = applyBump(current, bump);
+
+  while (existingVersions.has(formatVersion(candidate))) {
+    candidate = applyBump(candidate, bump);
+  }
+
+  return candidate;
+}
+
 // ---------------------------------------------------------------------------
 // Package.json updates
 // ---------------------------------------------------------------------------
@@ -129,12 +176,11 @@ function updatePackageVersions(newVersion) {
 
 const dryRun = process.argv.includes("--dry");
 
-const latestTag = getLatestTag();
-const currentVersion = latestTag
-  ? parseSemver(latestTag)
-  : parseSemver("0.0.0");
+const currentVersion = getCurrentVersion();
+const current = parseSemver(currentVersion);
+const existingVersions = getRemoteTagVersions();
 
-const commits = getCommitsSince(latestTag);
+const commits = getCommitsSince(currentVersion);
 
 if (commits.length === 0) {
   console.error("No commits found since last tag. Nothing to bump.");
@@ -142,16 +188,17 @@ if (commits.length === 0) {
 }
 
 const bump = determineBumpType(commits);
-const nextVersion = formatVersion(applyBump(currentVersion, bump));
+const nextVersion = formatVersion(findAvailableVersion(current, bump, existingVersions));
 
 if (dryRun) {
-  console.error(`Current: ${formatVersion(currentVersion)}`);
+  console.error(`Current: ${currentVersion}`);
   console.error(`Bump:    ${bump}`);
   console.error(`Next:    ${nextVersion}`);
   console.error(`Commits: ${commits.length}`);
+  console.error(`Remote tags: ${existingVersions.size}`);
 } else {
   updatePackageVersions(nextVersion);
-  console.error(`Bumped ${formatVersion(currentVersion)} -> ${nextVersion} (${bump})`);
+  console.error(`Bumped ${currentVersion} -> ${nextVersion} (${bump})`);
   console.error(`Updated ${PACKAGE_PATHS.length} package.json files`);
 }
 

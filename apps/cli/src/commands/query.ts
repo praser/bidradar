@@ -16,11 +16,10 @@ export const query = new Command('query')
   .option(
     '-s, --sort <expr>',
     'Sort expression (e.g. "uf asc, askingPrice desc")',
-    'updatedAt desc',
+    'createdAt desc',
   )
   .option('-l, --page-size <n>', 'Rows per page', '50')
   .option('-p, --page <n>', 'Page number', '1')
-  .option('-r, --include-removed', 'Include soft-deleted records', false)
   .option('-c, --columns <cols>', 'Comma-separated column names to display')
   .option('--no-pager', 'Disable pager (less) for output')
   .action(
@@ -29,7 +28,6 @@ export const query = new Command('query')
       sort: string
       pageSize: string
       page: string
-      includeRemoved: boolean
       columns?: string
       pager: boolean
     }) => {
@@ -64,9 +62,6 @@ export const query = new Command('query')
           sort: opts.sort,
           pageSize: opts.pageSize,
           page: opts.page,
-        }
-        if (opts.includeRemoved) {
-          queryParams['includeRemoved'] = 'true'
         }
 
         const result = await apiRequest<OffersResponse>('GET', '/offers', {

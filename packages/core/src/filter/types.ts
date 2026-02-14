@@ -17,7 +17,7 @@ export const NUMERIC_FIELDS = [
 export const FILTER_FIELDS = [...TEXT_FIELDS, ...NUMERIC_FIELDS] as const
 export type FilterField = (typeof FILTER_FIELDS)[number]
 
-export const SORTABLE_FIELDS = [...FILTER_FIELDS, 'updatedAt'] as const
+export const SORTABLE_FIELDS = [...FILTER_FIELDS, 'createdAt'] as const
 export type SortableField = (typeof SORTABLE_FIELDS)[number]
 
 export type SortDirection = 'asc' | 'desc'

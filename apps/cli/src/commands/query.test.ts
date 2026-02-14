@@ -72,7 +72,7 @@ describe('query command', () => {
 
     expect(mockApiRequest).toHaveBeenCalledWith('GET', '/offers', {
       query: expect.objectContaining({
-        sort: 'updatedAt desc',
+        sort: 'createdAt desc',
         pageSize: '50',
         page: '1',
       }),
@@ -125,18 +125,6 @@ describe('query command', () => {
 
     expect(displayWithPager).not.toHaveBeenCalled()
     expect(console.log).toHaveBeenCalledWith('rendered table')
-  })
-
-  it('passes includeRemoved flag when specified', async () => {
-    mockApiRequest.mockResolvedValue(mockOfferResponse)
-
-    await query.parseAsync(['-r'], { from: 'user' })
-
-    expect(mockApiRequest).toHaveBeenCalledWith('GET', '/offers', {
-      query: expect.objectContaining({
-        includeRemoved: 'true',
-      }),
-    })
   })
 
   it('shows login prompt on 401 error', async () => {

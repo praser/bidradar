@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Offer } from './offer.js'
 import type { OfferRepository } from './offer-repository.js'
 import { reconcileOffers, type ReconcileResult } from './reconcile-offers.js'
@@ -22,7 +23,7 @@ export interface DownloadMetadata {
 }
 
 export interface DownloadMetadataRepository {
-  insert(metadata: DownloadMetadata): Promise<void>
+  insert(metadata: DownloadMetadata): Promise<string>
 }
 
 export interface UpdateCefOffersDeps {
@@ -48,18 +49,19 @@ export async function updateCefOffers(
   const uf = 'geral'
   const now = new Date()
   const date = now.toISOString().split('T')[0]
+  const runId = randomUUID().slice(0, 8)
 
   const { content, downloadUrl } = await deps.fetchOffersCsv(uf)
 
-  const bucketKey = `cef-downloads/offer-list/${date}.${uf}.csv`
+  const bucketKey = `cef-downloads/offer-list/${date}.${uf}.${runId}.csv`
   const { bucketName } = await deps.fileStore.store({
     key: bucketKey,
     content,
     contentType: 'text/csv',
   })
 
-  await deps.metadataRepo.insert({
-    fileName: `${date}.${uf}.csv`,
+  const downloadId = await deps.metadataRepo.insert({
+    fileName: `${date}.${uf}.${runId}.csv`,
     fileExtension: 'csv',
     fileSize: content.length,
     fileType: 'offer-list',
@@ -83,7 +85,7 @@ export async function updateCefOffers(
 
   const results = new Map<string, ReconcileResult>()
   for (const [state, stateOffers] of offersByUf) {
-    const result = await reconcileOffers(state, stateOffers, deps.offerRepo)
+    const result = await reconcileOffers(state, stateOffers, deps.offerRepo, downloadId)
     results.set(state, result)
   }
 

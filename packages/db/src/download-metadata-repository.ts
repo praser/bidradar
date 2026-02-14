@@ -7,16 +7,20 @@ export function createDownloadMetadataRepository(): DownloadMetadataRepository {
 
   return {
     async insert(metadata) {
-      await db.insert(downloadMetadata).values({
-        fileName: metadata.fileName,
-        fileExtension: metadata.fileExtension,
-        fileSize: metadata.fileSize,
-        fileType: metadata.fileType,
-        downloadUrl: metadata.downloadUrl,
-        downloadedAt: metadata.downloadedAt,
-        bucketName: metadata.bucketName,
-        bucketKey: metadata.bucketKey,
-      })
+      const [row] = await db
+        .insert(downloadMetadata)
+        .values({
+          fileName: metadata.fileName,
+          fileExtension: metadata.fileExtension,
+          fileSize: metadata.fileSize,
+          fileType: metadata.fileType,
+          downloadUrl: metadata.downloadUrl,
+          downloadedAt: metadata.downloadedAt,
+          bucketName: metadata.bucketName,
+          bucketKey: metadata.bucketKey,
+        })
+        .returning({ id: downloadMetadata.id })
+      return row!.id
     },
   }
 }

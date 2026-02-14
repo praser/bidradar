@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { OffersQuerySchema, parseSort } from '@bidradar/api-contract'
 import { parseFilter, FilterParseError } from '@bidradar/core'
-import { getDb, offers, filterToDrizzle, SORT_COLUMN_MAP } from '@bidradar/db'
-import { and, isNull, sql, asc, desc } from 'drizzle-orm'
+import { getDb, currentOffers, filterToDrizzle, SORT_COLUMN_MAP } from '@bidradar/db'
+import { sql, asc, desc } from 'drizzle-orm'
 import type { AuthEnv } from '../middleware/authenticate.js'
 
 export function offerRoutes() {
@@ -14,7 +14,6 @@ export function offerRoutes() {
     const db = getDb()
 
     const conditions = []
-    if (!query.includeRemoved) conditions.push(isNull(offers.removedAt))
 
     if (query.filter) {
       let ast
@@ -32,11 +31,11 @@ export function offerRoutes() {
       conditions.push(filterToDrizzle(ast))
     }
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined
+    const where = conditions.length > 0 ? conditions[0] : undefined
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
-      .from(offers)
+      .from(currentOffers)
       .where(where)
     const total = Number(countResult?.count ?? 0)
 
@@ -58,25 +57,25 @@ export function offerRoutes() {
 
     const rows = await db
       .select()
-      .from(offers)
+      .from(currentOffers)
       .where(where)
       .limit(query.pageSize)
       .offset(offset)
       .orderBy(...orderBy)
 
     const data = rows.map((row) => ({
-      id: row.sourceId,
-      uf: row.uf,
-      city: row.city,
-      neighborhood: row.neighborhood,
-      address: row.address,
+      id: row.sourceId!,
+      uf: row.uf!,
+      city: row.city!,
+      neighborhood: row.neighborhood!,
+      address: row.address!,
       askingPrice: Number(row.askingPrice),
       evaluationPrice: Number(row.evaluationPrice),
       discountPercent: Number(row.discountPercent),
-      description: row.description,
-      propertyType: row.propertyType,
-      sellingType: row.sellingType,
-      offerUrl: row.offerUrl,
+      description: row.description!,
+      propertyType: row.propertyType!,
+      sellingType: row.sellingType!,
+      offerUrl: row.offerUrl!,
     }))
 
     return c.json({

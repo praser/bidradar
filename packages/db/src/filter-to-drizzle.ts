@@ -1,6 +1,6 @@
 import { eq, ne, gt, gte, lt, lte, and, or, not, ilike, inArray, type SQL } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
-import { offers } from './schema.js'
+import { currentOffers } from './schema.js'
 import type {
   FilterNode,
   FilterField,
@@ -9,21 +9,21 @@ import type {
 } from '@bidradar/core'
 
 const COLUMN_MAP: Record<FilterField, AnyColumn> = {
-  uf: offers.uf,
-  city: offers.city,
-  neighborhood: offers.neighborhood,
-  address: offers.address,
-  description: offers.description,
-  propertyType: offers.propertyType,
-  sellingType: offers.sellingType,
-  askingPrice: offers.askingPrice,
-  evaluationPrice: offers.evaluationPrice,
-  discountPercent: offers.discountPercent,
+  uf: currentOffers.uf,
+  city: currentOffers.city,
+  neighborhood: currentOffers.neighborhood,
+  address: currentOffers.address,
+  description: currentOffers.description,
+  propertyType: currentOffers.propertyType,
+  sellingType: currentOffers.sellingType,
+  askingPrice: currentOffers.askingPrice,
+  evaluationPrice: currentOffers.evaluationPrice,
+  discountPercent: currentOffers.discountPercent,
 }
 
 export const SORT_COLUMN_MAP: Record<SortableField, AnyColumn> = {
   ...COLUMN_MAP,
-  updatedAt: offers.updatedAt,
+  createdAt: currentOffers.createdAt,
 }
 
 function escapeLike(value: string): string {

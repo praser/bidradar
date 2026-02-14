@@ -57,6 +57,13 @@
       "when": 1771019719644,
       "tag": "0007_legal_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771027200000,
+      "tag": "0008_immutable_offers",
+      "breakpoints": true
     }
   ]
 }

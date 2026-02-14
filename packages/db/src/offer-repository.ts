@@ -2,11 +2,12 @@ import type { Offer, OfferRepository } from '@bidradar/core'
 import { parseDescription } from '@bidradar/core'
 import { getDb } from './connection.js'
 import { offers, propertyDetails, type OfferRow } from './schema.js'
-import { eq, and, isNull, inArray, sql } from 'drizzle-orm'
+import { eq, and, ne, inArray, sql, desc } from 'drizzle-orm'
 
-const nowUTC = () => new Date()
-
-function offerToRow(offer: Offer) {
+function offerToRow(
+  offer: Offer,
+  params: { version: number; operation: string; downloadId: string },
+) {
   return {
     sourceId: offer.id,
     uf: offer.uf,
@@ -20,8 +21,9 @@ function offerToRow(offer: Offer) {
     propertyType: offer.propertyType,
     sellingType: offer.sellingType,
     offerUrl: offer.offerUrl,
-    lastSeenAt: nowUTC(),
-    removedAt: null,
+    version: params.version,
+    operation: params.operation,
+    downloadId: params.downloadId,
   }
 }
 
@@ -65,8 +67,8 @@ function toPropertyDetailsRow(offerId: string, offer: Offer) {
 
 const CHUNK_SIZE = 5000
 // PostgreSQL supports max 65,535 parameters per query.
-// Offers have 14 params per row; property details have 10.
-// floor(65535 / 14) = 4681 — use 1000 for comfortable headroom.
+// Offers have 15 params per row; property details have 10.
+// floor(65535 / 15) = 4369 — use 1000 for comfortable headroom.
 const INSERT_CHUNK_SIZE = 1000
 
 export function createOfferRepository(): OfferRepository {
@@ -80,23 +82,26 @@ export function createOfferRepository(): OfferRepository {
       const offerMap = new Map(offersList.map((o) => [o.id, o]))
       const result = new Map<
         string,
-        { internalId: string; version: number; changed: boolean }
+        { latestVersion: number; isActive: boolean; changed: boolean }
       >()
 
       for (let i = 0; i < sourceIds.length; i += CHUNK_SIZE) {
         const chunk = sourceIds.slice(i, i + CHUNK_SIZE)
+        // DISTINCT ON (source_id) ... ORDER BY source_id, version DESC
+        // gives us the latest version row per sourceId
         const rows = await db
-          .select()
+          .selectDistinctOn([offers.sourceId])
           .from(offers)
           .where(inArray(offers.sourceId, chunk))
+          .orderBy(offers.sourceId, desc(offers.version))
 
         for (const row of rows) {
           const offer = offerMap.get(row.sourceId)
           if (offer !== undefined) {
             result.set(row.sourceId, {
-              internalId: row.id,
-              version: row.version,
-              changed: !offerEquals(row, offer),
+              latestVersion: row.version,
+              isActive: row.operation !== 'delete',
+              changed: row.operation === 'delete' || !offerEquals(row, offer),
             })
           }
         }
@@ -105,22 +110,28 @@ export function createOfferRepository(): OfferRepository {
       return result
     },
 
-    async insertMany(offersList) {
-      if (offersList.length === 0) return
+    async insertVersions(entries, downloadId) {
+      if (entries.length === 0) return
 
-      for (let i = 0; i < offersList.length; i += INSERT_CHUNK_SIZE) {
-        const chunk = offersList.slice(i, i + INSERT_CHUNK_SIZE)
-        const rows = chunk.map(offerToRow)
+      for (let i = 0; i < entries.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = entries.slice(i, i + INSERT_CHUNK_SIZE)
+        const rows = chunk.map((e) =>
+          offerToRow(e.offer, {
+            version: e.version,
+            operation: e.operation,
+            downloadId,
+          }),
+        )
         const inserted = await db
           .insert(offers)
           .values(rows)
           .returning({ id: offers.id, sourceId: offers.sourceId })
 
         if (inserted.length > 0) {
-          const offerMap = new Map(chunk.map((o) => [o.id, o]))
+          const entryMap = new Map(chunk.map((e) => [e.offer.id, e.offer]))
           const pdRows = inserted
             .map((row) => {
-              const offer = offerMap.get(row.sourceId)
+              const offer = entryMap.get(row.sourceId)
               if (offer === undefined) return null
               return toPropertyDetailsRow(row.id, offer)
             })
@@ -149,72 +160,53 @@ export function createOfferRepository(): OfferRepository {
       }
     },
 
-    async updateMany(entries) {
-      if (entries.length === 0) return
-
-      await db.transaction(async (tx) => {
-        for (const entry of entries) {
-          const row = offerToRow(entry.offer)
-          await tx
-            .update(offers)
-            .set({
-              ...row,
-              version: entry.version + 1,
-              updatedAt: nowUTC(),
-            })
-            .where(eq(offers.id, entry.internalId))
-
-          const pdRow = toPropertyDetailsRow(entry.internalId, entry.offer)
-          await tx
-            .insert(propertyDetails)
-            .values(pdRow)
-            .onConflictDoUpdate({
-              target: propertyDetails.offerId,
-              set: pdRow,
-            })
-        }
-      })
-    },
-
-    async touchManyLastSeen(internalIds) {
-      if (internalIds.length === 0) return
-
-      const now = nowUTC()
-      for (let i = 0; i < internalIds.length; i += CHUNK_SIZE) {
-        const chunk = internalIds.slice(i, i + CHUNK_SIZE)
-        await db
-          .update(offers)
-          .set({ lastSeenAt: now, removedAt: null })
-          .where(inArray(offers.id, chunk))
-      }
-    },
-
-    async softDeleteMissing(uf, activeSourceIds) {
+    async insertDeleteVersions(uf, activeSourceIds, downloadId) {
       if (activeSourceIds.size === 0) return 0
 
-      const existing = await db
-        .select({ id: offers.id, sourceId: offers.sourceId })
+      // Find latest active version per sourceId in this UF
+      const latestRows = await db
+        .selectDistinctOn([offers.sourceId])
         .from(offers)
-        .where(and(eq(offers.uf, uf), isNull(offers.removedAt)))
+        .where(and(eq(offers.uf, uf), ne(offers.operation, 'delete')))
+        .orderBy(offers.sourceId, desc(offers.version))
 
-      const toRemove = existing
-        .filter((r) => !activeSourceIds.has(r.sourceId))
-        .map((r) => r.id)
+      // Filter to those not in activeSourceIds (missing from this download)
+      const toDelete = latestRows.filter(
+        (r) => !activeSourceIds.has(r.sourceId),
+      )
 
-      if (toRemove.length === 0) return 0
+      if (toDelete.length === 0) return 0
 
-      const now = nowUTC()
-      let totalRemoved = 0
-      for (let i = 0; i < toRemove.length; i += CHUNK_SIZE) {
-        const chunk = toRemove.slice(i, i + CHUNK_SIZE)
-        const removed = await db
-          .update(offers)
-          .set({ removedAt: now })
-          .where(inArray(offers.id, chunk))
+      // Insert delete version rows
+      let totalDeleted = 0
+      for (let i = 0; i < toDelete.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = toDelete.slice(i, i + INSERT_CHUNK_SIZE)
+        const rows = chunk.map((row) => ({
+          sourceId: row.sourceId,
+          uf: row.uf,
+          city: row.city,
+          neighborhood: row.neighborhood,
+          address: row.address,
+          askingPrice: row.askingPrice,
+          evaluationPrice: row.evaluationPrice,
+          discountPercent: row.discountPercent,
+          description: row.description,
+          propertyType: row.propertyType,
+          sellingType: row.sellingType,
+          offerUrl: row.offerUrl,
+          version: row.version + 1,
+          operation: 'delete',
+          downloadId,
+        }))
+
+        const inserted = await db
+          .insert(offers)
+          .values(rows)
           .returning({ id: offers.id })
-        totalRemoved += removed.length
+        totalDeleted += inserted.length
       }
-      return totalRemoved
+
+      return totalDeleted
     },
   }
 }

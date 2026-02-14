@@ -18,7 +18,7 @@ vi.mock('drizzle-orm', () => {
 })
 
 vi.mock('./schema.js', () => ({
-  offers: {
+  currentOffers: {
     uf: { name: 'uf' },
     city: { name: 'city' },
     neighborhood: { name: 'neighborhood' },
@@ -29,7 +29,7 @@ vi.mock('./schema.js', () => ({
     askingPrice: { name: 'askingPrice' },
     evaluationPrice: { name: 'evaluationPrice' },
     discountPercent: { name: 'discountPercent' },
-    updatedAt: { name: 'updatedAt' },
+    createdAt: { name: 'createdAt' },
   },
 }))
 
@@ -211,11 +211,11 @@ describe('filterToDrizzle', () => {
 })
 
 describe('SORT_COLUMN_MAP', () => {
-  it('includes all filter fields plus updatedAt', () => {
+  it('includes all filter fields plus createdAt', () => {
     const expectedFields = [
       'uf', 'city', 'neighborhood', 'address', 'description',
       'propertyType', 'sellingType', 'askingPrice', 'evaluationPrice',
-      'discountPercent', 'updatedAt',
+      'discountPercent', 'createdAt',
     ]
     for (const field of expectedFields) {
       expect(SORT_COLUMN_MAP).toHaveProperty(field)

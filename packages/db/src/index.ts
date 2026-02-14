@@ -1,6 +1,7 @@
 export { getDb, closeDb, getRawClient } from './connection.js'
 export {
   offers,
+  currentOffers,
   users,
   propertyDetails,
   downloadMetadata,

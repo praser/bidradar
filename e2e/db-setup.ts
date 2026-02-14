@@ -43,7 +43,8 @@ export async function seedOffers(count: number = 3) {
     sellingType: 'Licitacao Aberta',
     offerUrl: `https://example.com/offers/${String(i + 1)}`,
     version: 1,
-    lastSeenAt: new Date(),
+    operation: 'insert',
+    createdAt: new Date(),
   }))
 
   return db.insert(offers).values(rows).returning()

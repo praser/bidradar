@@ -3,8 +3,7 @@ import { Hono } from 'hono'
 import type { AuthEnv } from '../middleware/authenticate.js'
 
 vi.mock('@bidradar/db', () => {
-  const mockOffers = {
-    removedAt: { name: 'removedAt' },
+  const mockCurrentOffers = {
     sourceId: { name: 'sourceId' },
     uf: { name: 'uf' },
     city: { name: 'city' },
@@ -17,25 +16,25 @@ vi.mock('@bidradar/db', () => {
     propertyType: { name: 'propertyType' },
     sellingType: { name: 'sellingType' },
     offerUrl: { name: 'offerUrl' },
-    updatedAt: { name: 'updatedAt' },
+    createdAt: { name: 'createdAt' },
   }
 
   return {
     getDb: vi.fn(),
-    offers: mockOffers,
+    currentOffers: mockCurrentOffers,
     filterToDrizzle: vi.fn().mockReturnValue('mock-sql-filter'),
     SORT_COLUMN_MAP: {
-      uf: mockOffers.uf,
-      city: mockOffers.city,
-      neighborhood: mockOffers.neighborhood,
-      address: mockOffers.address,
-      description: mockOffers.description,
-      propertyType: mockOffers.propertyType,
-      sellingType: mockOffers.sellingType,
-      askingPrice: mockOffers.askingPrice,
-      evaluationPrice: mockOffers.evaluationPrice,
-      discountPercent: mockOffers.discountPercent,
-      updatedAt: mockOffers.updatedAt,
+      uf: mockCurrentOffers.uf,
+      city: mockCurrentOffers.city,
+      neighborhood: mockCurrentOffers.neighborhood,
+      address: mockCurrentOffers.address,
+      description: mockCurrentOffers.description,
+      propertyType: mockCurrentOffers.propertyType,
+      sellingType: mockCurrentOffers.sellingType,
+      askingPrice: mockCurrentOffers.askingPrice,
+      evaluationPrice: mockCurrentOffers.evaluationPrice,
+      discountPercent: mockCurrentOffers.discountPercent,
+      createdAt: mockCurrentOffers.createdAt,
     },
   }
 })
@@ -58,9 +57,9 @@ const sampleRow = {
   sellingType: 'Venda Direta',
   offerUrl: 'https://example.com/offer/1',
   version: 1,
-  updatedAt: new Date('2024-01-01'),
-  lastSeenAt: new Date('2024-01-01'),
-  removedAt: null,
+  operation: 'insert',
+  downloadId: null,
+  createdAt: new Date('2024-01-01'),
 }
 
 function setupDbMock(rows: unknown[] = [sampleRow], count = rows.length) {
