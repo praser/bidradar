@@ -36,9 +36,34 @@ function git(cmd) {
   return execSync(`git ${cmd}`, { cwd: ROOT, encoding: "utf-8" }).trim();
 }
 
-function getLatestTag() {
+function getReachableTag() {
   try {
     return git("describe --tags --abbrev=0");
+  } catch {
+    return null;
+  }
+}
+
+function getHighestTag() {
+  try {
+    git("fetch --tags --force");
+  } catch {
+    // Continue with local tags if fetch fails (e.g., no remote)
+  }
+
+  try {
+    const output = git("tag --list 'v*' --sort=-v:refname");
+    if (!output) return null;
+    const tags = output.split("\n").filter(Boolean);
+    for (const tag of tags) {
+      try {
+        parseSemver(tag);
+        return tag;
+      } catch {
+        continue;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -70,6 +95,12 @@ function parseSemver(version) {
 
 function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
+}
+
+function compareSemver(a, b) {
+  if (a.major !== b.major) return a.major - b.major;
+  if (a.minor !== b.minor) return a.minor - b.minor;
+  return a.patch - b.patch;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,12 +160,24 @@ function updatePackageVersions(newVersion) {
 
 const dryRun = process.argv.includes("--dry");
 
-const latestTag = getLatestTag();
-const currentVersion = latestTag
-  ? parseSemver(latestTag)
+// reachableTag: latest tag that is an ancestor of HEAD (for commit range)
+// highestTag: highest semver tag across all branches/remote (prevents duplicates)
+const reachableTag = getReachableTag();
+const highestTag = getHighestTag();
+
+const reachableVersion = reachableTag
+  ? parseSemver(reachableTag)
+  : parseSemver("0.0.0");
+const highestVersion = highestTag
+  ? parseSemver(highestTag)
   : parseSemver("0.0.0");
 
-const commits = getCommitsSince(latestTag);
+const currentVersion =
+  compareSemver(highestVersion, reachableVersion) >= 0
+    ? highestVersion
+    : reachableVersion;
+
+const commits = getCommitsSince(reachableTag);
 
 if (commits.length === 0) {
   console.error("No commits found since last tag. Nothing to bump.");
@@ -145,6 +188,8 @@ const bump = determineBumpType(commits);
 const nextVersion = formatVersion(applyBump(currentVersion, bump));
 
 if (dryRun) {
+  console.error(`Reachable tag: ${reachableTag ?? "(none)"}`);
+  console.error(`Highest tag:   ${highestTag ?? "(none)"}`);
   console.error(`Current: ${formatVersion(currentVersion)}`);
   console.error(`Bump:    ${bump}`);
   console.error(`Next:    ${nextVersion}`);
