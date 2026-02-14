@@ -20,13 +20,13 @@ Add a new external data source (similar to the existing CEF package).
    - Implement a parse function that converts raw data into `Offer[]` from `@bidradar/core`
    - Export a `getOffers: GetOffers` function following the `GetOffers` type signature
 
-3. Add the source to the reconcile endpoint:
-   - Add to `ReconcileParamsSchema` source enum in `packages/api-contract/src/api-contract.ts`
-   - Add a new case in `apps/api/src/routes/reconcile.ts` switch statement
+3. Add the source to the management flow:
+   - The data flow is: CLI downloads file -> uploads to S3 via presigned URL -> processing parses and reconciles
+   - Add file type to `CefFileType` in `packages/core/src/cef-file.ts` (or create equivalent for the new source)
    - The reconcile logic (`reconcileOffers`) is source-agnostic -- just pass the parsed offers
 
 4. Add CLI support:
-   - Add a subcommand under `apps/cli/src/commands/reconcile.ts`
+   - Add a subcommand under `apps/cli/src/commands/management.ts`
 
 5. Build and register:
    - Add to `pnpm-workspace.yaml` if needed (already covers `packages/*`)

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Manage bidradar releases including version bumping, conventional commits, tagging, and promoting dev to prod. Use when creating releases, checking release status, or rolling back.
+description: Manage bidradar releases including automated version bumping from conventional commits, deploying to dev, E2E testing, and promoting to prod. Use when checking release status, understanding the release flow, or rolling back.
 ---
 
 # Release
@@ -9,61 +9,29 @@ Manage bidradar releases and version promotion.
 
 ## Release flow
 
-1. All work merges to `main` via pull requests
-2. Merging to `main` triggers CI (build + typecheck + unit tests)
-3. To release, tag a commit and push the tag
-4. Tag push triggers the Release workflow (CLI tarball, GitHub Release, Homebrew tap, Docker image)
-5. The `dev` Lambda alias is updated on merge to `main`
-6. After E2E validation against `dev`, manually promote to `prod`
+Releases are **fully automated** on merge to `main` (`.github/workflows/release.yml`):
 
-## Creating a release
+1. All work merges to `main` via pull requests with conventional commit messages
+2. Merging to `main` triggers the Release workflow
+3. `scripts/bump-version.mjs --dry` determines the semver bump from conventional commits since the last tag
+4. Static checks + unit tests run
+5. SST deploys to AWS (`dev` alias updated to `$LATEST`)
+6. E2E tests run against the deployed `dev` Lambda
+7. Version is bumped across all 7 `package.json` files, `CHANGELOG.md` is generated, commit + tag are pushed
+8. Lambda version is published and `prod` alias is promoted
+9. CLI is built with prod URL baked in, GitHub Release is created with tarball, Homebrew tap is updated
 
-### 1. Ensure main is up to date
-
-```bash
-git checkout main
-git pull origin main
-```
-
-### 2. Bump version
-
-Update the version in the root `package.json`:
-
-```bash
-# Check current version
-grep '"version"' package.json
-```
-
-Follow semver: `MAJOR.MINOR.PATCH` (use `-alpha`, `-beta` suffixes for pre-releases).
-
-### 3. Tag and push
-
-```bash
-git tag v<version>
-git push origin v<version>
-```
-
-### 4. Verify release
-
-```bash
-gh run list --workflow=release.yml --limit 5
-gh release list --limit 5
-```
+Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
 
 ## Conventional commits
 
-Use conventional commit prefixes for clear changelogs:
+Use conventional commit prefixes -- the release pipeline auto-bumps semver from them:
 
 | Prefix | When to use | Version bump |
 |---|---|---|
 | `feat:` | New feature | minor |
 | `fix:` | Bug fix | patch |
-| `docs:` | Documentation only | none |
-| `refactor:` | Code restructuring, no behavior change | none |
-| `test:` | Adding or updating tests | none |
-| `ci:` | CI/CD changes | none |
-| `chore:` | Maintenance, dependencies | none |
-| `perf:` | Performance improvement | patch |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:` | Non-feature changes | patch |
 | `BREAKING CHANGE:` | In commit body, or `feat!:` / `fix!:` | major |
 
 Examples:
@@ -91,18 +59,6 @@ gh run list --workflow=release.yml --limit 5
 gh run view <run-id>
 ```
 
-## Promoting dev to prod
-
-After E2E tests pass against the `dev` environment:
-
-```bash
-# Get the current dev version
-aws lambda get-alias --function-name <function-name> --name dev
-
-# Promote to prod
-aws lambda update-alias --function-name <function-name> --name prod --function-version <version>
-```
-
 ## Rolling back
 
 ### Rollback Lambda (prod)
@@ -125,12 +81,3 @@ gh release delete v<version> --yes
 git tag -d v<version>
 git push origin :refs/tags/v<version>
 ```
-
-## What the Release workflow does
-
-Triggered by pushing a `v*` tag. Two parallel jobs:
-
-1. **release-cli**: Build CLI, create tarball, create GitHub Release, update Homebrew tap
-2. **release-api-image**: Build and push API Docker image to `ghcr.io/praser/bidradar-api`
-
-The image is tagged with both the version and `latest`.

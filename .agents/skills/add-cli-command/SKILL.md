@@ -47,6 +47,6 @@ Add a new command to the bidradar CLI application.
 
 - Always handle `ApiError` with 401 (not authenticated) and 403 (forbidden) cases
 - Use `ora` spinners for any async operations
-- Use Zod for any input validation (see reconcile.ts for parseUf pattern)
+- Use Zod for any input validation
 - The CLI is bundled by tsup -- all dependencies are inlined
 - API client lives in `apps/cli/src/lib/apiClient.ts` (supports JSON and NDJSON streaming)

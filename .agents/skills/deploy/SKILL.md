@@ -65,20 +65,24 @@ Roll `prod` back to a previous version:
 aws lambda update-alias --function-name <function-name> --name prod --function-version <previous-version>
 ```
 
-## Release process (CLI + API image)
+## Release process
 
-1. Tag the commit: `git tag v<version>`
-2. Push the tag: `git push origin v<version>`
-3. GitHub Actions will:
-   - Build CLI and create tarball
-   - Create GitHub Release with the tarball
-   - Update Homebrew tap formula
-   - Build and push API Docker image to GHCR
+Releases are fully automated on merge to `main`. The release workflow (`release.yml`):
 
-## Docker deployment (alternative)
+1. Determines semver bump from conventional commits
+2. Runs static checks + unit tests
+3. Deploys to dev via SST
+4. Runs E2E tests against dev Lambda
+5. Bumps versions, generates changelog, commits + tags
+6. Publishes Lambda version and promotes prod alias
+7. Builds CLI with prod URL, creates GitHub Release with tarball, updates Homebrew tap
+
+See the `release` skill for more details.
+
+## Docker (local development only)
 
 ```bash
-docker compose up -d                    # Start all services
+docker compose up -d                    # Start PostgreSQL + API + Drizzle Studio
 docker compose up -d --build api        # Rebuild API image
 ```
 

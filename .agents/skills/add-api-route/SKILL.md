@@ -17,8 +17,8 @@ Add a new route to the Hono API server.
    - Return typed JSON responses
 4. Register the route in `apps/api/src/app.ts`:
    - Public routes: `app.route('/path', routes(env))`
-   - Authenticated routes: add to `authenticated` Hono instance
-   - Admin routes: add to `adminOnly` Hono instance
+   - Authenticated routes: add to the `authenticated` Hono instance
+   - Admin-only routes: use `authorize('admin')` middleware inside the route file (see `management.ts` for pattern)
 5. Build: `pnpm --filter @bidradar/api-contract build && pnpm --filter @bidradar/api build`
 
 ## Patterns
