@@ -32,8 +32,12 @@ const PACKAGE_PATHS = [
 // Git helpers
 // ---------------------------------------------------------------------------
 
-function git(cmd) {
-  return execSync(`git ${cmd}`, { cwd: ROOT, encoding: "utf-8" }).trim();
+function git(cmd, opts = {}) {
+  return execSync(`git ${cmd}`, {
+    cwd: ROOT,
+    encoding: "utf-8",
+    ...opts,
+  }).trim();
 }
 
 function getReachableTag() {
@@ -44,13 +48,15 @@ function getReachableTag() {
   }
 }
 
-function getHighestTag() {
+function fetchRemoteTags() {
   try {
     git("fetch --tags --force");
   } catch {
     // Continue with local tags if fetch fails (e.g., no remote)
   }
+}
 
+function getHighestTag() {
   try {
     const output = git("tag --list 'v*' --sort=-v:refname");
     if (!output) return null;
@@ -66,6 +72,15 @@ function getHighestTag() {
     return null;
   } catch {
     return null;
+  }
+}
+
+function tagExists(version) {
+  try {
+    git(`rev-parse --verify refs/tags/v${version}`, { stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -160,22 +175,17 @@ function updatePackageVersions(newVersion) {
 
 const dryRun = process.argv.includes("--dry");
 
-// reachableTag: latest tag that is an ancestor of HEAD (for commit range)
-// highestTag: highest semver tag across all branches/remote (prevents duplicates)
+// Ensure we have all remote tags before any version logic
+fetchRemoteTags();
+
+// reachableTag: latest tag that is an ancestor of HEAD (base for bumping)
+// highestTag: highest semver tag across all branches (fallback if candidate conflicts)
 const reachableTag = getReachableTag();
 const highestTag = getHighestTag();
 
 const reachableVersion = reachableTag
   ? parseSemver(reachableTag)
   : parseSemver("0.0.0");
-const highestVersion = highestTag
-  ? parseSemver(highestTag)
-  : parseSemver("0.0.0");
-
-const currentVersion =
-  compareSemver(highestVersion, reachableVersion) >= 0
-    ? highestVersion
-    : reachableVersion;
 
 const commits = getCommitsSince(reachableTag);
 
@@ -185,18 +195,36 @@ if (commits.length === 0) {
 }
 
 const bump = determineBumpType(commits);
-const nextVersion = formatVersion(applyBump(currentVersion, bump));
+
+// Bump from the reachable tag first (natural progression for the current branch)
+let nextVersion = formatVersion(applyBump(reachableVersion, bump));
+
+// If that version already exists, bump from the highest tag instead
+if (tagExists(nextVersion)) {
+  const highestVersion = highestTag
+    ? parseSemver(highestTag)
+    : parseSemver("0.0.0");
+  nextVersion = formatVersion(applyBump(highestVersion, bump));
+
+  if (tagExists(nextVersion)) {
+    console.error(
+      `Both v${formatVersion(applyBump(reachableVersion, bump))} and v${nextVersion} already exist. Cannot determine next version.`,
+    );
+    process.exit(1);
+  }
+}
 
 if (dryRun) {
   console.error(`Reachable tag: ${reachableTag ?? "(none)"}`);
   console.error(`Highest tag:   ${highestTag ?? "(none)"}`);
-  console.error(`Current: ${formatVersion(currentVersion)}`);
   console.error(`Bump:    ${bump}`);
   console.error(`Next:    ${nextVersion}`);
   console.error(`Commits: ${commits.length}`);
 } else {
   updatePackageVersions(nextVersion);
-  console.error(`Bumped ${formatVersion(currentVersion)} -> ${nextVersion} (${bump})`);
+  console.error(
+    `Bumped ${formatVersion(reachableVersion)} -> ${nextVersion} (${bump})`,
+  );
   console.error(`Updated ${PACKAGE_PATHS.length} package.json files`);
 }
 
