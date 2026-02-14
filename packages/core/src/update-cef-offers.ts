@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Offer } from './offer.js'
 import type { OfferRepository } from './offer-repository.js'
 import { reconcileOffers, type ReconcileResult } from './reconcile-offers.js'
@@ -48,10 +49,11 @@ export async function updateCefOffers(
   const uf = 'geral'
   const now = new Date()
   const date = now.toISOString().split('T')[0]
+  const runId = randomUUID().slice(0, 8)
 
   const { content, downloadUrl } = await deps.fetchOffersCsv(uf)
 
-  const bucketKey = `cef-downloads/offer-list/${date}.${uf}.csv`
+  const bucketKey = `cef-downloads/offer-list/${date}.${uf}.${runId}.csv`
   const { bucketName } = await deps.fileStore.store({
     key: bucketKey,
     content,
@@ -59,7 +61,7 @@ export async function updateCefOffers(
   })
 
   await deps.metadataRepo.insert({
-    fileName: `${date}.${uf}.csv`,
+    fileName: `${date}.${uf}.${runId}.csv`,
     fileExtension: 'csv',
     fileSize: content.length,
     fileType: 'offer-list',

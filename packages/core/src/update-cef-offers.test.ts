@@ -76,19 +76,25 @@ describe('updateCefOffers', () => {
 
     expect(deps.fetchOffersCsv).toHaveBeenCalledWith('geral')
     expect(store).toHaveBeenCalledWith({
-      key: 'cef-downloads/offer-list/2026-02-13.geral.csv',
+      key: expect.stringMatching(
+        /^cef-downloads\/offer-list\/2026-02-13\.geral\.[a-f0-9]{8}\.csv$/,
+      ),
       content: Buffer.from('csv-content'),
       contentType: 'text/csv',
     })
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileName: '2026-02-13.geral.csv',
+        fileName: expect.stringMatching(
+          /^2026-02-13\.geral\.[a-f0-9]{8}\.csv$/,
+        ),
         fileExtension: 'csv',
         fileSize: 11,
         fileType: 'offer-list',
         downloadUrl: 'https://cef.example.com/Lista_imoveis_geral.csv',
         bucketName: 'test-bucket',
-        bucketKey: 'cef-downloads/offer-list/2026-02-13.geral.csv',
+        bucketKey: expect.stringMatching(
+          /^cef-downloads\/offer-list\/2026-02-13\.geral\.[a-f0-9]{8}\.csv$/,
+        ),
       }),
     )
     expect(result.fileSize).toBe(11)
