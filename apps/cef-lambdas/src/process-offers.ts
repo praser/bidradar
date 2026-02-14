@@ -21,7 +21,11 @@ export async function handler(event: S3Event) {
     const { fileType, uf, fileName } = parseCefS3Key(s3Key)
 
     const content = await fileStore.get(s3Key)
-    const downloadUrl = buildCefDownloadUrl(fileType, uf)
+    const downloadUrlOptions: { uf?: string } = {}
+    if (uf) {
+      downloadUrlOptions.uf = uf
+    }
+    const downloadUrl = buildCefDownloadUrl(fileType, downloadUrlOptions)
 
     const result = await processOffersFile(
       content,

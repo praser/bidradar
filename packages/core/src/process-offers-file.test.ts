@@ -36,11 +36,12 @@ function createMockDeps() {
     findExistingOffers: vi.fn().mockResolvedValue(new Map()),
     insertVersions: vi.fn().mockResolvedValue(undefined),
     insertDeleteVersions: vi.fn().mockResolvedValue(0),
+    findOffersNeedingDetails: vi.fn().mockResolvedValue([]),
   }
 
   const deps: ProcessOffersFileDeps = {
     parseOffers,
-    metadataRepo: { insert },
+    metadataRepo: { insert, findByContentHash: vi.fn().mockResolvedValue(undefined) },
     offerRepo,
   }
 

@@ -66,13 +66,63 @@ export const UserMeResponseSchema = AuthUserSchema
 
 // POST /management/upload-url
 export const UploadUrlRequestSchema = z.object({
-  fileType: z.enum(['offer-list']),
+  fileType: z.enum([
+    'offer-list',
+    'auctions-schedule',
+    'licensed-brokers',
+    'accredited-auctioneers',
+    'offer-details',
+  ]),
+  offerId: z.string().uuid().optional(),
 })
 
 export const UploadUrlResponseSchema = z.object({
   uploadUrl: z.string().url(),
   s3Key: z.string(),
   expiresIn: z.number(),
+})
+
+// POST /management/check-hash
+export const CheckHashRequestSchema = z.object({
+  contentHash: z.string().length(64),
+})
+
+export const CheckHashResponseSchema = z.object({
+  exists: z.boolean(),
+})
+
+// POST /management/record-download
+export const RecordDownloadRequestSchema = z.object({
+  fileName: z.string(),
+  fileExtension: z.string(),
+  fileSize: z.number().int().positive(),
+  fileType: z.string(),
+  downloadUrl: z.string().url(),
+  downloadedAt: z.coerce.date(),
+  bucketName: z.string(),
+  bucketKey: z.string(),
+  contentHash: z.string().length(64).optional(),
+})
+
+export const RecordDownloadResponseSchema = z.object({
+  downloadId: z.string().uuid(),
+})
+
+// GET /management/pending-offer-details
+export const PendingOfferDetailsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(10000).optional(),
+  since: z.coerce.date().optional(),
+})
+
+export const PendingOfferDetailsResponseSchema = z.object({
+  offers: z.array(
+    z.object({
+      id: z.string().uuid(),
+      sourceId: z.string(),
+      offerUrl: z.string().url(),
+    }),
+  ),
+  total: z.number(),
 })
 
 // Error response

@@ -1,8 +1,8 @@
 import type { Offer, OfferRepository } from '@bidradar/core'
-import { parseDescription } from '@bidradar/core'
+import { parseDescription, buildCefDownloadUrl } from '@bidradar/core'
 import { getDb } from './connection.js'
-import { offers, propertyDetails, type OfferRow } from './schema.js'
-import { eq, and, ne, inArray, sql, desc } from 'drizzle-orm'
+import { offers, currentOffers, downloadMetadata, propertyDetails, type OfferRow } from './schema.js'
+import { eq, and, ne, gte, inArray, sql, desc, notExists } from 'drizzle-orm'
 
 function offerToRow(
   offer: Offer,
@@ -207,6 +207,47 @@ export function createOfferRepository(): OfferRepository {
       }
 
       return totalDeleted
+    },
+
+    async findOffersNeedingDetails(since) {
+      // Find active offers from currentOffers view that don't have
+      // a matching offer-details download in download_metadata
+      const conditions = [
+        ne(currentOffers.operation, 'delete'),
+      ]
+      if (since) {
+        conditions.push(gte(currentOffers.createdAt, since))
+      }
+
+      const rows = await db
+        .select({
+          id: currentOffers.id,
+          sourceId: currentOffers.sourceId,
+          offerUrl: currentOffers.offerUrl,
+        })
+        .from(currentOffers)
+        .where(
+          and(
+            ...conditions,
+            notExists(
+              db
+                .select({ id: downloadMetadata.id })
+                .from(downloadMetadata)
+                .where(
+                  and(
+                    eq(downloadMetadata.fileType, 'offer-details'),
+                    sql`${downloadMetadata.bucketKey} LIKE 'cef-downloads/offer-details/' || ${currentOffers.id} || '/%'`,
+                  ),
+                ),
+            ),
+          ),
+        )
+
+      return rows.map((r) => ({
+        id: r.id!,
+        sourceId: r.sourceId!,
+        offerUrl: r.offerUrl!,
+      }))
     },
   }
 }
