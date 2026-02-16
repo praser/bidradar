@@ -4,14 +4,7 @@ import {
   createOfferRepository,
 } from '@bidradar/db'
 import { createS3FileStore } from './s3-file-store.js'
-
-async function fetchBinary(url: string): Promise<Buffer> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`Download failed: ${res.status} ${res.statusText}`)
-  }
-  return Buffer.from(await res.arrayBuffer())
-}
+import { createZyteFetchBinary } from './zyte-fetch.js'
 
 export async function handler() {
   const bucketName = process.env.BUCKET_NAME
@@ -19,8 +12,14 @@ export async function handler() {
     throw new Error('BUCKET_NAME environment variable is required')
   }
 
+  const apiKey = process.env.ZYTE_API_KEY
+  if (!apiKey) {
+    throw new Error('ZYTE_API_KEY environment variable is required')
+  }
+
   const rateLimit = Number(process.env.DETAIL_DOWNLOAD_RATE_LIMIT ?? '5')
 
+  const fetchBinary = createZyteFetchBinary(apiKey)
   const fileStore = createS3FileStore(bucketName)
   const metadataRepo = createDownloadMetadataRepository()
   const offerRepo = createOfferRepository()

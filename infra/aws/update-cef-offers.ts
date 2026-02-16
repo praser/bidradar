@@ -9,9 +9,10 @@ new sst.aws.Cron("DownloadCefOffers", {
     runtime: "nodejs22.x",
     timeout: "5 minutes",
     memory: "512 MB",
-    link: [bucket],
+    link: [bucket, secrets.ZYTE_API_KEY],
     environment: {
       BUCKET_NAME: bucket.name,
+      ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
     },
   },
 });
@@ -42,10 +43,11 @@ new sst.aws.Cron("DownloadCefFiles", {
     runtime: "nodejs22.x",
     timeout: "5 minutes",
     memory: "512 MB",
-    link: [bucket, secrets.DATABASE_URL],
+    link: [bucket, secrets.DATABASE_URL, secrets.ZYTE_API_KEY],
     environment: {
       BUCKET_NAME: bucket.name,
       DATABASE_URL: secrets.DATABASE_URL.value,
+      ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
     },
   },
 });
@@ -57,10 +59,11 @@ new sst.aws.Cron("DownloadOfferDetails", {
     runtime: "nodejs22.x",
     timeout: "15 minutes",
     memory: "512 MB",
-    link: [bucket, secrets.DATABASE_URL],
+    link: [bucket, secrets.DATABASE_URL, secrets.ZYTE_API_KEY],
     environment: {
       BUCKET_NAME: bucket.name,
       DATABASE_URL: secrets.DATABASE_URL.value,
+      ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
       DETAIL_DOWNLOAD_RATE_LIMIT: "5",
     },
   },

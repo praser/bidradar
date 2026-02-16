@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+vi.mock('./zyte-fetch.js', () => ({
+  createZyteFetchBinary: vi.fn().mockReturnValue(vi.fn()),
+}))
+
 vi.mock('@bidradar/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bidradar/core')>()
   return {
@@ -43,6 +47,7 @@ describe('download-offer-details handler', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.BUCKET_NAME = 'test-bucket'
+    process.env.ZYTE_API_KEY = 'test-zyte-key'
   })
 
   afterEach(() => {
@@ -51,6 +56,7 @@ describe('download-offer-details handler', () => {
     } else {
       delete process.env.BUCKET_NAME
     }
+    delete process.env.ZYTE_API_KEY
     vi.restoreAllMocks()
   })
 
@@ -88,6 +94,14 @@ describe('download-offer-details handler', () => {
 
     await expect(handler()).rejects.toThrow(
       'BUCKET_NAME environment variable is required',
+    )
+  })
+
+  it('throws if ZYTE_API_KEY is not set', async () => {
+    delete process.env.ZYTE_API_KEY
+
+    await expect(handler()).rejects.toThrow(
+      'ZYTE_API_KEY environment variable is required',
     )
   })
 })

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+vi.mock('./zyte-fetch.js', () => ({
+  createZyteFetchBinary: vi.fn().mockReturnValue(vi.fn()),
+}))
+
 vi.mock('@bidradar/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bidradar/core')>()
   return {
@@ -35,7 +39,9 @@ describe('download-cef-files handler', () => {
   const originalEnv = process.env.BUCKET_NAME
 
   beforeEach(() => {
+    vi.clearAllMocks()
     process.env.BUCKET_NAME = 'test-bucket'
+    process.env.ZYTE_API_KEY = 'test-zyte-key'
   })
 
   afterEach(() => {
@@ -44,6 +50,7 @@ describe('download-cef-files handler', () => {
     } else {
       delete process.env.BUCKET_NAME
     }
+    delete process.env.ZYTE_API_KEY
     vi.restoreAllMocks()
   })
 
@@ -73,5 +80,42 @@ describe('download-cef-files handler', () => {
     await expect(handler()).rejects.toThrow(
       'BUCKET_NAME environment variable is required',
     )
+  })
+
+  it('throws if ZYTE_API_KEY is not set', async () => {
+    delete process.env.ZYTE_API_KEY
+
+    await expect(handler()).rejects.toThrow(
+      'ZYTE_API_KEY environment variable is required',
+    )
+  })
+
+  it('continues processing remaining files when one fails', async () => {
+    vi.mocked(downloadCefFile)
+      .mockResolvedValueOnce({
+        outcome: 'uploaded',
+        contentHash: 'a'.repeat(64),
+        fileSize: 1024,
+        s3Key: 'key1',
+        downloadId: 'id1',
+      })
+      .mockRejectedValueOnce(new Error('Zyte API error 520: Website Ban'))
+      .mockResolvedValueOnce({
+        outcome: 'uploaded',
+        contentHash: 'b'.repeat(64),
+        fileSize: 2048,
+        s3Key: 'key2',
+        downloadId: 'id2',
+      })
+
+    const result = await handler()
+
+    expect(downloadCefFile).toHaveBeenCalledTimes(3)
+    expect(result.statusCode).toBe(200)
+    expect(result.body.results).toHaveLength(3)
+    expect(result.body.results[0]!.outcome).toBe('uploaded')
+    expect(result.body.results[1]!.outcome).toBe('error')
+    expect(result.body.results[1]!.error).toContain('520')
+    expect(result.body.results[2]!.outcome).toBe('uploaded')
   })
 })
