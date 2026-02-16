@@ -10,6 +10,7 @@ export default defineConfig({
   target: 'node22',
   platform: 'node',
   bundle: true,
+  splitting: false,
   noExternal: [/.*/],
   clean: true,
   define: {
