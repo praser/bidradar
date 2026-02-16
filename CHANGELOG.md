@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-02-16
+
+### Bug Fixes
+
+- Disable tsup code splitting to fix Homebrew install (5a6dc5f)
+
+### Other
+
+- Merge pull request #18 from praser/bugfix-v4 (37c905e)
+
 ## [0.4.0] - 2026-02-14
 
 ### Features
