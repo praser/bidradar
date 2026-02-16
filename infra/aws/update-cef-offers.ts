@@ -2,10 +2,13 @@
 
 import { bucket, secrets } from "./api.js";
 
-new sst.aws.Cron("DownloadCefOffers", {
-  schedule: "cron(0 10 * * ? *)",
-  job: {
-    handler: "apps/cef-lambdas/src/download-offers.handler",
+const queue = new sst.aws.Queue("CefDownloadQueue", {
+  visibilityTimeout: "6 minutes",
+});
+
+queue.subscribe(
+  {
+    handler: "apps/cef-lambdas/src/download-file.handler",
     runtime: "nodejs22.x",
     timeout: "5 minutes",
     memory: "512 MB",
@@ -15,7 +18,12 @@ new sst.aws.Cron("DownloadCefOffers", {
       ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
     },
   },
-});
+  {
+    batch: {
+      size: 1,
+    },
+  },
+);
 
 bucket.subscribe(
   {
@@ -35,36 +43,3 @@ bucket.subscribe(
     filterSuffix: ".csv",
   },
 );
-
-new sst.aws.Cron("DownloadCefFiles", {
-  schedule: "cron(0 11 * * ? *)",
-  job: {
-    handler: "apps/cef-lambdas/src/download-cef-files.handler",
-    runtime: "nodejs22.x",
-    timeout: "5 minutes",
-    memory: "512 MB",
-    link: [bucket, secrets.DATABASE_URL, secrets.ZYTE_API_KEY],
-    environment: {
-      BUCKET_NAME: bucket.name,
-      DATABASE_URL: secrets.DATABASE_URL.value,
-      ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
-    },
-  },
-});
-
-new sst.aws.Cron("DownloadOfferDetails", {
-  schedule: "cron(0 12 * * ? *)",
-  job: {
-    handler: "apps/cef-lambdas/src/download-offer-details.handler",
-    runtime: "nodejs22.x",
-    timeout: "15 minutes",
-    memory: "512 MB",
-    link: [bucket, secrets.DATABASE_URL, secrets.ZYTE_API_KEY],
-    environment: {
-      BUCKET_NAME: bucket.name,
-      DATABASE_URL: secrets.DATABASE_URL.value,
-      ZYTE_API_KEY: secrets.ZYTE_API_KEY.value,
-      DETAIL_DOWNLOAD_RATE_LIMIT: "5",
-    },
-  },
-});

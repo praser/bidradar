@@ -81,19 +81,6 @@ describe('processOffersFile', () => {
     expect(result.states).toBe(1)
   })
 
-  it('passes download ID to reconcileOffers', async () => {
-    const { deps, parseOffers, offerRepo } = createMockDeps()
-    parseOffers.mockResolvedValue([makeOffer()])
-
-    await processOffersFile(Buffer.from('csv'), makeMetadata(), deps)
-
-    expect(offerRepo.insertDeleteVersions).toHaveBeenCalledWith(
-      'DF',
-      expect.any(Set),
-      'fake-download-id',
-    )
-  })
-
   it('groups offers by UF and reconciles each state', async () => {
     const { deps, parseOffers, offerRepo } = createMockDeps()
     parseOffers.mockResolvedValue([

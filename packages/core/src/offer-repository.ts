@@ -14,13 +14,11 @@ export interface OfferRepository {
 
   insertVersions(
     entries: readonly { offer: Offer; version: number; operation: 'insert' | 'update' }[],
-    downloadId: string,
   ): Promise<void>
 
   insertDeleteVersions(
     uf: string,
     activeSourceIds: ReadonlySet<string>,
-    downloadId: string,
   ): Promise<number>
 
   findOffersNeedingDetails(since?: Date): Promise<OfferForDetailDownload[]>

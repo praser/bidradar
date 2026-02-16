@@ -99,6 +99,9 @@ importers:
       '@bidradar/db':
         specifier: workspace:*
         version: link:../../packages/db
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.147

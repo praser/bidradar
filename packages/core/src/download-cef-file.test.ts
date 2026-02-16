@@ -21,7 +21,9 @@ describe('downloadCefFile', () => {
   it('uploads a new file when hash is not found', async () => {
     const deps = makeDeps()
 
-    const result = await downloadCefFile('auctions-schedule', deps)
+    const result = await downloadCefFile('auctions-schedule', deps, {
+      url: 'https://example.com/file.pdf',
+    })
 
     expect(result.outcome).toBe('uploaded')
     expect(result.fileSize).toBe(12)
@@ -42,7 +44,9 @@ describe('downloadCefFile', () => {
       },
     })
 
-    const result = await downloadCefFile('auctions-schedule', deps)
+    const result = await downloadCefFile('auctions-schedule', deps, {
+      url: 'https://example.com/file.pdf',
+    })
 
     expect(result.outcome).toBe('skipped')
     expect(result.fileSize).toBe(12)
@@ -52,30 +56,21 @@ describe('downloadCefFile', () => {
     expect(deps.metadataRepo.insert).not.toHaveBeenCalled()
   })
 
-  it('passes correct URL to fetchBinary for offer-list', async () => {
+  it('passes URL directly to fetchBinary', async () => {
     const deps = makeDeps()
+    const url = 'https://example.com/Lista_imoveis_DF.csv'
 
-    await downloadCefFile('offer-list', deps, { uf: 'DF' })
+    await downloadCefFile('offer-list', deps, { url, uf: 'DF' })
 
-    expect(deps.fetchBinary).toHaveBeenCalledWith(
-      'https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_DF.csv',
-    )
-  })
-
-  it('passes correct URL for auctions-schedule', async () => {
-    const deps = makeDeps()
-
-    await downloadCefFile('auctions-schedule', deps)
-
-    expect(deps.fetchBinary).toHaveBeenCalledWith(
-      'https://www.caixa.gov.br/Downloads/habitacao-documentos-gerais/calendario-leiloes-imoveis-caixa.pdf',
-    )
+    expect(deps.fetchBinary).toHaveBeenCalledWith(url)
   })
 
   it('stores file with correct content type', async () => {
     const deps = makeDeps()
 
-    await downloadCefFile('licensed-brokers', deps)
+    await downloadCefFile('licensed-brokers', deps, {
+      url: 'https://example.com/brokers.zip',
+    })
 
     expect(deps.fileStore.store).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'application/zip' }),
@@ -85,14 +80,30 @@ describe('downloadCefFile', () => {
   it('records metadata with content hash', async () => {
     const deps = makeDeps()
 
-    await downloadCefFile('accredited-auctioneers', deps)
+    await downloadCefFile('accredited-auctioneers', deps, {
+      url: 'https://example.com/auctioneers.pdf',
+    })
 
     expect(deps.metadataRepo.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         fileType: 'accredited-auctioneers',
         fileExtension: 'pdf',
         contentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        downloadUrl: 'https://example.com/auctioneers.pdf',
       }),
     )
+  })
+
+  it('passes offerId to S3 key builder for offer-details', async () => {
+    const deps = makeDeps()
+
+    const result = await downloadCefFile('offer-details', deps, {
+      url: 'https://example.com/detail.html',
+      offerId: 'offer-123',
+    })
+
+    expect(result.outcome).toBe('uploaded')
+    expect(result.s3Key).toContain('offer-details')
+    expect(result.s3Key).toContain('offer-123')
   })
 })

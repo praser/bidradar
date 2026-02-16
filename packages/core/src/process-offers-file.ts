@@ -21,7 +21,7 @@ export async function processOffersFile(
   metadata: Omit<DownloadMetadata, 'fileSize'>,
   deps: ProcessOffersFileDeps,
 ): Promise<ProcessOffersFileResult> {
-  const downloadId = await deps.metadataRepo.insert({
+  await deps.metadataRepo.insert({
     ...metadata,
     fileSize: content.length,
   })
@@ -40,7 +40,7 @@ export async function processOffersFile(
 
   const results = new Map<string, ReconcileResult>()
   for (const [state, stateOffers] of offersByUf) {
-    const result = await reconcileOffers(state, stateOffers, deps.offerRepo, downloadId)
+    const result = await reconcileOffers(state, stateOffers, deps.offerRepo)
     results.set(state, result)
   }
 

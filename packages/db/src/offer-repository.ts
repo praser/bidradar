@@ -1,12 +1,12 @@
 import type { Offer, OfferRepository } from '@bidradar/core'
-import { parseDescription, buildCefDownloadUrl } from '@bidradar/core'
+import { parseDescription } from '@bidradar/core'
 import { getDb } from './connection.js'
 import { offers, currentOffers, downloadMetadata, propertyDetails, type OfferRow } from './schema.js'
 import { eq, and, ne, gte, inArray, sql, desc, notExists } from 'drizzle-orm'
 
 function offerToRow(
   offer: Offer,
-  params: { version: number; operation: string; downloadId: string },
+  params: { version: number; operation: string },
 ) {
   return {
     sourceId: offer.id,
@@ -23,7 +23,6 @@ function offerToRow(
     offerUrl: offer.offerUrl,
     version: params.version,
     operation: params.operation,
-    downloadId: params.downloadId,
   }
 }
 
@@ -110,7 +109,7 @@ export function createOfferRepository(): OfferRepository {
       return result
     },
 
-    async insertVersions(entries, downloadId) {
+    async insertVersions(entries) {
       if (entries.length === 0) return
 
       for (let i = 0; i < entries.length; i += INSERT_CHUNK_SIZE) {
@@ -119,7 +118,6 @@ export function createOfferRepository(): OfferRepository {
           offerToRow(e.offer, {
             version: e.version,
             operation: e.operation,
-            downloadId,
           }),
         )
         const inserted = await db
@@ -160,7 +158,7 @@ export function createOfferRepository(): OfferRepository {
       }
     },
 
-    async insertDeleteVersions(uf, activeSourceIds, downloadId) {
+    async insertDeleteVersions(uf, activeSourceIds) {
       if (activeSourceIds.size === 0) return 0
 
       // Find latest active version per sourceId in this UF
@@ -196,7 +194,6 @@ export function createOfferRepository(): OfferRepository {
           offerUrl: row.offerUrl,
           version: row.version + 1,
           operation: 'delete',
-          downloadId,
         }))
 
         const inserted = await db
