@@ -6,6 +6,7 @@ export type CefFileType =
   | 'licensed-brokers'
   | 'accredited-auctioneers'
   | 'offer-details'
+  | 'offer-details-screenshot'
 
 export const CEF_FILE_TYPES: readonly CefFileType[] = [
   'offer-list',
@@ -13,6 +14,7 @@ export const CEF_FILE_TYPES: readonly CefFileType[] = [
   'licensed-brokers',
   'accredited-auctioneers',
   'offer-details',
+  'offer-details-screenshot',
 ] as const
 
 const CEF_FILE_EXTENSIONS: Record<CefFileType, string> = {
@@ -21,6 +23,7 @@ const CEF_FILE_EXTENSIONS: Record<CefFileType, string> = {
   'licensed-brokers': 'zip',
   'accredited-auctioneers': 'pdf',
   'offer-details': 'html',
+  'offer-details-screenshot': 'png',
 }
 
 const EXTENSION_CONTENT_TYPES: Record<string, string> = {
@@ -28,6 +31,7 @@ const EXTENSION_CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   zip: 'application/zip',
   html: 'text/html',
+  png: 'image/png',
 }
 
 export function contentTypeFromExtension(ext: string): string {
@@ -50,9 +54,9 @@ export function buildCefS3Key(params: {
     return `cef-downloads/offer-list/${date}.${uf}.${runId}.${ext}`
   }
 
-  if (params.fileType === 'offer-details') {
+  if (params.fileType === 'offer-details' || params.fileType === 'offer-details-screenshot') {
     const offerId = params.offerId ?? 'unknown'
-    return `cef-downloads/offer-details/${offerId}/${date}.offer-details.${runId}.${ext}`
+    return `cef-downloads/offer-details/${offerId}/${date}.${params.fileType}.${runId}.${ext}`
   }
 
   return `cef-downloads/${params.fileType}/${date}.${params.fileType}.${runId}.${ext}`
@@ -77,8 +81,11 @@ export function parseCefS3Key(key: string): ParsedCefS3Key {
     const fileName = parts[3]!
     const ext = fileName.split('.').pop()!
     const segments = fileName.replace(`.${ext}`, '').split('.')
+    const actualFileType = segments[1] === 'offer-details-screenshot'
+      ? 'offer-details-screenshot' as CefFileType
+      : fileType
     return {
-      fileType,
+      fileType: actualFileType,
       date: segments[0]!,
       runId: segments[2]!,
       fileName,

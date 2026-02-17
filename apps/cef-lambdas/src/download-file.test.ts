@@ -5,6 +5,13 @@ vi.mock('./zyte-fetch.js', () => ({
   createZyteFetchBinary: vi.fn().mockReturnValue(vi.fn()),
 }))
 
+vi.mock('./browser-fetch.js', () => ({
+  browserFetch: vi.fn().mockResolvedValue({
+    html: Buffer.from('<html><body>rendered</body></html>'),
+    screenshot: Buffer.from('fake-png-data'),
+  }),
+}))
+
 vi.mock('@bidradar/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bidradar/core')>()
   return {
@@ -36,6 +43,9 @@ vi.mock('./s3-file-store.js', () => ({
 import { handler } from './download-file.js'
 import { downloadCefFile } from '@bidradar/core'
 import { createZyteFetchBinary } from './zyte-fetch.js'
+import { browserFetch } from './browser-fetch.js'
+import { createDownloadMetadataRepository } from '@bidradar/db'
+import { createS3FileStore } from './s3-file-store.js'
 
 function makeSqsEvent(body: Record<string, unknown>): SQSEvent {
   return {
@@ -223,5 +233,86 @@ describe('download-file handler', () => {
         }),
       ),
     ).resolves.toBeUndefined()
+  })
+
+  it('uses browser fetch when useBrowser is true', async () => {
+    await handler(
+      makeSqsEvent({
+        url: 'https://example.com/detail.html',
+        fileType: 'offer-details',
+        offerId: 'offer-123',
+        useBrowser: true,
+      }),
+    )
+
+    expect(browserFetch).toHaveBeenCalledWith('https://example.com/detail.html')
+    expect(downloadCefFile).not.toHaveBeenCalled()
+
+    const fileStore = vi.mocked(createS3FileStore).mock.results[0]!.value
+    expect(fileStore.store).toHaveBeenCalledTimes(2)
+
+    const metadataRepo = vi.mocked(createDownloadMetadataRepository).mock.results[0]!.value
+    expect(metadataRepo.insert).toHaveBeenCalledTimes(2)
+
+    const htmlInsert = vi.mocked(metadataRepo.insert).mock.calls[0]![0]
+    expect(htmlInsert.fileType).toBe('offer-details')
+    expect(htmlInsert.fileExtension).toBe('html')
+    expect(htmlInsert.contentHash).toBeDefined()
+
+    const screenshotInsert = vi.mocked(metadataRepo.insert).mock.calls[1]![0]
+    expect(screenshotInsert.fileType).toBe('offer-details-screenshot')
+    expect(screenshotInsert.fileExtension).toBe('png')
+  })
+
+  it('skips browser download when HTML content hash already exists', async () => {
+    const mockFindByContentHash = vi.fn().mockResolvedValue({ id: 'existing-id' })
+    const mockInsert = vi.fn().mockResolvedValue('download-id')
+    vi.mocked(createDownloadMetadataRepository).mockReturnValue({
+      insert: mockInsert,
+      findByContentHash: mockFindByContentHash,
+    })
+
+    await handler(
+      makeSqsEvent({
+        url: 'https://example.com/detail.html',
+        fileType: 'offer-details',
+        offerId: 'offer-123',
+        useBrowser: true,
+      }),
+    )
+
+    expect(browserFetch).toHaveBeenCalled()
+
+    const fileStore = vi.mocked(createS3FileStore).mock.results[0]!.value
+    expect(fileStore.store).not.toHaveBeenCalled()
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('does not invoke browserFetch when useBrowser is false', async () => {
+    await handler(
+      makeSqsEvent({
+        url: 'https://example.com/detail.html',
+        fileType: 'offer-details',
+        offerId: 'offer-123',
+        useBrowser: false,
+      }),
+    )
+
+    expect(browserFetch).not.toHaveBeenCalled()
+    expect(downloadCefFile).toHaveBeenCalled()
+  })
+
+  it('rejects when both useZyte and useBrowser are true', async () => {
+    await expect(
+      handler(
+        makeSqsEvent({
+          url: 'https://example.com/detail.html',
+          fileType: 'offer-details',
+          offerId: 'offer-123',
+          useZyte: true,
+          useBrowser: true,
+        }),
+      ),
+    ).rejects.toThrow()
   })
 })

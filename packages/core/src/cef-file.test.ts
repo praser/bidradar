@@ -8,13 +8,14 @@ import {
 } from './cef-file.js'
 
 describe('CEF_FILE_TYPES', () => {
-  it('contains all 5 file types', () => {
+  it('contains all 6 file types', () => {
     expect(CEF_FILE_TYPES).toEqual([
       'offer-list',
       'auctions-schedule',
       'licensed-brokers',
       'accredited-auctioneers',
       'offer-details',
+      'offer-details-screenshot',
     ])
   })
 })
@@ -34,6 +35,10 @@ describe('contentTypeFromExtension', () => {
 
   it('returns text/html for html', () => {
     expect(contentTypeFromExtension('html')).toBe('text/html')
+  })
+
+  it('returns image/png for png', () => {
+    expect(contentTypeFromExtension('png')).toBe('image/png')
   })
 
   it('returns application/octet-stream for unknown extensions', () => {
@@ -121,6 +126,18 @@ describe('buildCefS3Key', () => {
       'cef-downloads/offer-details/offer-uuid-123/2026-02-14.offer-details.abc12345.html',
     )
   })
+
+  it('builds offer-details-screenshot key with offerId', () => {
+    const key = buildCefS3Key({
+      fileType: 'offer-details-screenshot',
+      offerId: 'offer-uuid-123',
+      date: '2026-02-14',
+      runId: 'abc12345',
+    })
+    expect(key).toBe(
+      'cef-downloads/offer-details/offer-uuid-123/2026-02-14.offer-details-screenshot.abc12345.png',
+    )
+  })
 })
 
 describe('parseCefS3Key', () => {
@@ -206,6 +223,35 @@ describe('parseCefS3Key', () => {
     expect(parsed.date).toBe('2026-01-15')
     expect(parsed.runId).toBe('aabbccdd')
     expect(parsed.extension).toBe('html')
+  })
+
+  it('parses offer-details-screenshot key with offerId', () => {
+    const parsed = parseCefS3Key(
+      'cef-downloads/offer-details/offer-uuid-123/2026-02-14.offer-details-screenshot.abc12345.png',
+    )
+    expect(parsed).toEqual({
+      fileType: 'offer-details-screenshot',
+      date: '2026-02-14',
+      runId: 'abc12345',
+      fileName: '2026-02-14.offer-details-screenshot.abc12345.png',
+      extension: 'png',
+      offerId: 'offer-uuid-123',
+    })
+  })
+
+  it('round-trips offer-details-screenshot with buildCefS3Key', () => {
+    const key = buildCefS3Key({
+      fileType: 'offer-details-screenshot',
+      offerId: 'my-offer-id',
+      date: '2026-01-15',
+      runId: 'aabbccdd',
+    })
+    const parsed = parseCefS3Key(key)
+    expect(parsed.fileType).toBe('offer-details-screenshot')
+    expect(parsed.offerId).toBe('my-offer-id')
+    expect(parsed.date).toBe('2026-01-15')
+    expect(parsed.runId).toBe('aabbccdd')
+    expect(parsed.extension).toBe('png')
   })
 
   it('round-trips bulk types with buildCefS3Key', () => {
