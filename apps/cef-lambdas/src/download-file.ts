@@ -16,7 +16,16 @@ const SqsMessageSchema = z.object({
   ]),
   uf: z.string().optional(),
   offerId: z.string().optional(),
+  useZyte: z.boolean().default(false),
 })
+
+async function plainFetchBinary(url: string): Promise<Buffer> {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`HTTP error ${res.status}: ${res.statusText}`)
+  }
+  return Buffer.from(await res.arrayBuffer())
+}
 
 function latin1ToUtf8(buffer: Buffer): Buffer {
   const str = buffer.toString('latin1')
@@ -29,17 +38,22 @@ export async function handler(event: SQSEvent) {
     throw new Error('BUCKET_NAME environment variable is required')
   }
 
-  const apiKey = process.env.ZYTE_API_KEY
-  if (!apiKey) {
-    throw new Error('ZYTE_API_KEY environment variable is required')
-  }
-
-  const fetchBinary = createZyteFetchBinary(apiKey)
   const fileStore = createS3FileStore(bucketName)
   const metadataRepo = createDownloadMetadataRepository()
 
   for (const record of event.Records) {
     const parsed = SqsMessageSchema.parse(JSON.parse(record.body))
+
+    let fetchBinary: (url: string) => Promise<Buffer>
+    if (parsed.useZyte) {
+      const apiKey = process.env.ZYTE_API_KEY
+      if (!apiKey) {
+        throw new Error('ZYTE_API_KEY environment variable is required')
+      }
+      fetchBinary = createZyteFetchBinary(apiKey)
+    } else {
+      fetchBinary = plainFetchBinary
+    }
 
     const wrappedFetchBinary =
       parsed.fileType === 'offer-list'
