@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { FileStore, DownloadMetadataRepository } from './update-cef-offers.js'
-import { buildCefS3Key, getCefFileDescriptor } from './cef-file.js'
+import { buildCefS3Key, contentTypeFromExtension } from './cef-file.js'
 
 export interface OfferForDetailDownload {
   readonly id: string
@@ -45,8 +45,6 @@ export async function downloadOfferDetails(
 ): Promise<DownloadOfferDetailsResult> {
   const rateLimit = options?.rateLimit ?? 5
   const delay = 1000 / rateLimit
-  const descriptor = getCefFileDescriptor('offer-details')
-
   let uploaded = 0
   let skipped = 0
   let errors = 0
@@ -69,16 +67,17 @@ export async function downloadOfferDetails(
           fileType: 'offer-details',
           offerId: offer.id,
         })
+        const ext = s3Key.split('.').pop()!
         const { bucketName, bucketKey } = await deps.fileStore.store({
           key: s3Key,
           content,
-          contentType: descriptor.contentType,
+          contentType: contentTypeFromExtension(ext),
         })
 
         const fileName = s3Key.split('/').pop()!
         await deps.metadataRepo.insert({
           fileName,
-          fileExtension: descriptor.extension,
+          fileExtension: ext,
           fileSize: content.length,
           fileType: 'offer-details',
           downloadUrl: offer.offerUrl,

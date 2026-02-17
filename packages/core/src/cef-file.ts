@@ -15,36 +15,23 @@ export const CEF_FILE_TYPES: readonly CefFileType[] = [
   'offer-details',
 ] as const
 
-export interface CefFileDescriptor {
-  readonly extension: string
-  readonly contentType: string
+const CEF_FILE_EXTENSIONS: Record<CefFileType, string> = {
+  'offer-list': 'csv',
+  'auctions-schedule': 'pdf',
+  'licensed-brokers': 'zip',
+  'accredited-auctioneers': 'pdf',
+  'offer-details': 'html',
 }
 
-const CEF_FILE_DESCRIPTORS: Record<CefFileType, CefFileDescriptor> = {
-  'offer-list': {
-    extension: 'csv',
-    contentType: 'text/csv',
-  },
-  'auctions-schedule': {
-    extension: 'pdf',
-    contentType: 'application/pdf',
-  },
-  'licensed-brokers': {
-    extension: 'zip',
-    contentType: 'application/zip',
-  },
-  'accredited-auctioneers': {
-    extension: 'pdf',
-    contentType: 'application/pdf',
-  },
-  'offer-details': {
-    extension: 'html',
-    contentType: 'text/html',
-  },
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  csv: 'text/csv',
+  pdf: 'application/pdf',
+  zip: 'application/zip',
+  html: 'text/html',
 }
 
-export function getCefFileDescriptor(fileType: CefFileType): CefFileDescriptor {
-  return CEF_FILE_DESCRIPTORS[fileType]
+export function contentTypeFromExtension(ext: string): string {
+  return EXTENSION_CONTENT_TYPES[ext] ?? 'application/octet-stream'
 }
 
 export function buildCefS3Key(params: {
@@ -56,19 +43,19 @@ export function buildCefS3Key(params: {
 }): string {
   const date = params.date ?? new Date().toISOString().split('T')[0]!
   const runId = params.runId ?? randomUUID().slice(0, 8)
-  const descriptor = getCefFileDescriptor(params.fileType)
+  const ext = CEF_FILE_EXTENSIONS[params.fileType]
 
   if (params.fileType === 'offer-list') {
     const uf = params.uf ?? 'geral'
-    return `cef-downloads/offer-list/${date}.${uf}.${runId}.${descriptor.extension}`
+    return `cef-downloads/offer-list/${date}.${uf}.${runId}.${ext}`
   }
 
   if (params.fileType === 'offer-details') {
     const offerId = params.offerId ?? 'unknown'
-    return `cef-downloads/offer-details/${offerId}/${date}.offer-details.${runId}.${descriptor.extension}`
+    return `cef-downloads/offer-details/${offerId}/${date}.offer-details.${runId}.${ext}`
   }
 
-  return `cef-downloads/${params.fileType}/${date}.${params.fileType}.${runId}.${descriptor.extension}`
+  return `cef-downloads/${params.fileType}/${date}.${params.fileType}.${runId}.${ext}`
 }
 
 export interface ParsedCefS3Key {

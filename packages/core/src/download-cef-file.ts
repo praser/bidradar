@@ -3,7 +3,7 @@ import type { FileStore, DownloadMetadataRepository } from './update-cef-offers.
 import {
   type CefFileType,
   buildCefS3Key,
-  getCefFileDescriptor,
+  contentTypeFromExtension,
 } from './cef-file.js'
 
 export interface DownloadCefFileDeps {
@@ -25,7 +25,6 @@ export async function downloadCefFile(
   deps: DownloadCefFileDeps,
   options: { url: string; uf?: string; offerId?: string },
 ): Promise<DownloadCefFileResult> {
-  const descriptor = getCefFileDescriptor(fileType)
   const url = options.url
 
   const content = await deps.fetchBinary(url)
@@ -48,16 +47,17 @@ export async function downloadCefFile(
     s3KeyParams.offerId = options.offerId
   }
   const s3Key = buildCefS3Key(s3KeyParams)
+  const ext = s3Key.split('.').pop()!
   const { bucketName, bucketKey } = await deps.fileStore.store({
     key: s3Key,
     content,
-    contentType: descriptor.contentType,
+    contentType: contentTypeFromExtension(ext),
   })
 
   const fileName = s3Key.split('/').pop()!
   const downloadId = await deps.metadataRepo.insert({
     fileName,
-    fileExtension: descriptor.extension,
+    fileExtension: ext,
     fileSize: content.length,
     fileType,
     downloadUrl: url,

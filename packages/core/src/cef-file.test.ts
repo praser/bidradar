@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   buildCefS3Key,
   parseCefS3Key,
-  getCefFileDescriptor,
+  contentTypeFromExtension,
   CEF_FILE_TYPES,
   type CefFileType,
 } from './cef-file.js'
@@ -19,35 +19,25 @@ describe('CEF_FILE_TYPES', () => {
   })
 })
 
-describe('getCefFileDescriptor', () => {
-  it('returns descriptor for offer-list', () => {
-    const d = getCefFileDescriptor('offer-list')
-    expect(d.extension).toBe('csv')
-    expect(d.contentType).toBe('text/csv')
+describe('contentTypeFromExtension', () => {
+  it('returns text/csv for csv', () => {
+    expect(contentTypeFromExtension('csv')).toBe('text/csv')
   })
 
-  it('returns descriptor for auctions-schedule', () => {
-    const d = getCefFileDescriptor('auctions-schedule')
-    expect(d.extension).toBe('pdf')
-    expect(d.contentType).toBe('application/pdf')
+  it('returns application/pdf for pdf', () => {
+    expect(contentTypeFromExtension('pdf')).toBe('application/pdf')
   })
 
-  it('returns descriptor for licensed-brokers', () => {
-    const d = getCefFileDescriptor('licensed-brokers')
-    expect(d.extension).toBe('zip')
-    expect(d.contentType).toBe('application/zip')
+  it('returns application/zip for zip', () => {
+    expect(contentTypeFromExtension('zip')).toBe('application/zip')
   })
 
-  it('returns descriptor for accredited-auctioneers', () => {
-    const d = getCefFileDescriptor('accredited-auctioneers')
-    expect(d.extension).toBe('pdf')
-    expect(d.contentType).toBe('application/pdf')
+  it('returns text/html for html', () => {
+    expect(contentTypeFromExtension('html')).toBe('text/html')
   })
 
-  it('returns descriptor for offer-details', () => {
-    const d = getCefFileDescriptor('offer-details')
-    expect(d.extension).toBe('html')
-    expect(d.contentType).toBe('text/html')
+  it('returns application/octet-stream for unknown extensions', () => {
+    expect(contentTypeFromExtension('xyz')).toBe('application/octet-stream')
   })
 })
 

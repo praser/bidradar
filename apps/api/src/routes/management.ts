@@ -7,7 +7,7 @@ import {
   RecordDownloadRequestSchema,
   PendingOfferDetailsQuerySchema,
 } from '@bidradar/api-contract'
-import { buildCefS3Key, getCefFileDescriptor } from '@bidradar/core'
+import { buildCefS3Key, contentTypeFromExtension } from '@bidradar/core'
 import {
   createDownloadMetadataRepository,
   createOfferRepository,
@@ -49,7 +49,6 @@ export function managementRoutes(env: Env) {
     }
 
     const { fileType, offerId } = parsed.data
-    const descriptor = getCefFileDescriptor(fileType)
 
     const s3KeyParams: Parameters<typeof buildCefS3Key>[0] = { fileType }
     if (fileType === 'offer-list') {
@@ -59,12 +58,13 @@ export function managementRoutes(env: Env) {
       s3KeyParams.offerId = offerId
     }
     const s3Key = buildCefS3Key(s3KeyParams)
+    const ext = s3Key.split('.').pop()!
 
     const client = new S3Client({})
     const command = new PutObjectCommand({
       Bucket: env.BUCKET_NAME,
       Key: s3Key,
-      ContentType: descriptor.contentType,
+      ContentType: contentTypeFromExtension(ext),
     })
 
     const uploadUrl = await getSignedUrl(client, command, {
