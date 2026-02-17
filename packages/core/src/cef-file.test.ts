@@ -2,9 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   buildCefS3Key,
   parseCefS3Key,
-  buildCefDownloadUrl,
-  getCefFileDescriptor,
-  CEF_BASE_URL,
+  contentTypeFromExtension,
   CEF_FILE_TYPES,
   type CefFileType,
 } from './cef-file.js'
@@ -21,40 +19,25 @@ describe('CEF_FILE_TYPES', () => {
   })
 })
 
-describe('getCefFileDescriptor', () => {
-  it('returns descriptor for offer-list', () => {
-    const d = getCefFileDescriptor('offer-list')
-    expect(d.extension).toBe('csv')
-    expect(d.contentType).toBe('text/csv')
-    expect(d.hasUf).toBe(true)
+describe('contentTypeFromExtension', () => {
+  it('returns text/csv for csv', () => {
+    expect(contentTypeFromExtension('csv')).toBe('text/csv')
   })
 
-  it('returns descriptor for auctions-schedule', () => {
-    const d = getCefFileDescriptor('auctions-schedule')
-    expect(d.extension).toBe('pdf')
-    expect(d.contentType).toBe('application/pdf')
-    expect(d.hasUf).toBe(false)
+  it('returns application/pdf for pdf', () => {
+    expect(contentTypeFromExtension('pdf')).toBe('application/pdf')
   })
 
-  it('returns descriptor for licensed-brokers', () => {
-    const d = getCefFileDescriptor('licensed-brokers')
-    expect(d.extension).toBe('zip')
-    expect(d.contentType).toBe('application/zip')
-    expect(d.hasUf).toBe(false)
+  it('returns application/zip for zip', () => {
+    expect(contentTypeFromExtension('zip')).toBe('application/zip')
   })
 
-  it('returns descriptor for accredited-auctioneers', () => {
-    const d = getCefFileDescriptor('accredited-auctioneers')
-    expect(d.extension).toBe('pdf')
-    expect(d.contentType).toBe('application/pdf')
-    expect(d.hasUf).toBe(false)
+  it('returns text/html for html', () => {
+    expect(contentTypeFromExtension('html')).toBe('text/html')
   })
 
-  it('returns descriptor for offer-details', () => {
-    const d = getCefFileDescriptor('offer-details')
-    expect(d.extension).toBe('html')
-    expect(d.contentType).toBe('text/html')
-    expect(d.hasUf).toBe(false)
+  it('returns application/octet-stream for unknown extensions', () => {
+    expect(contentTypeFromExtension('xyz')).toBe('application/octet-stream')
   })
 })
 
@@ -245,42 +228,3 @@ describe('parseCefS3Key', () => {
   })
 })
 
-describe('buildCefDownloadUrl', () => {
-  it('builds offer-list URL with uf', () => {
-    expect(buildCefDownloadUrl('offer-list', { uf: 'geral' })).toBe(
-      `${CEF_BASE_URL}/Lista_imoveis_geral.csv`,
-    )
-  })
-
-  it('builds offer-list URL for specific state', () => {
-    expect(buildCefDownloadUrl('offer-list', { uf: 'DF' })).toBe(
-      `${CEF_BASE_URL}/Lista_imoveis_DF.csv`,
-    )
-  })
-
-  it('builds auctions-schedule URL', () => {
-    expect(buildCefDownloadUrl('auctions-schedule')).toBe(
-      'https://www.caixa.gov.br/Downloads/habitacao-documentos-gerais/calendario-leiloes-imoveis-caixa.pdf',
-    )
-  })
-
-  it('builds licensed-brokers URL', () => {
-    expect(buildCefDownloadUrl('licensed-brokers')).toBe(
-      `${CEF_BASE_URL}/lista_corretores.zip`,
-    )
-  })
-
-  it('builds accredited-auctioneers URL', () => {
-    expect(buildCefDownloadUrl('accredited-auctioneers')).toBe(
-      'https://www.caixa.gov.br/Downloads/habitacao-documentos-gerais/Relacao_Leiloeiros.pdf',
-    )
-  })
-
-  it('builds offer-details URL with sourceId', () => {
-    expect(
-      buildCefDownloadUrl('offer-details', { sourceId: '123456' }),
-    ).toBe(
-      'https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnimovel=123456',
-    )
-  })
-})

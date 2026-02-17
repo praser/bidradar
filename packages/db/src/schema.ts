@@ -54,7 +54,6 @@ export const offers = pgTable(
     offerUrl: text('offer_url').notNull(),
     version: integer('version').notNull().default(1),
     operation: text('operation').notNull(),
-    downloadId: uuid('download_id').references(() => downloadMetadata.id),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -83,7 +82,6 @@ export const currentOffers = pgView('current_offers', {
   offerUrl: text('offer_url'),
   version: integer('version'),
   operation: text('operation'),
-  downloadId: uuid('download_id'),
   createdAt: timestamp('created_at', { withTimezone: true }),
 }).existing()
 

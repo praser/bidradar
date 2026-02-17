@@ -5,7 +5,6 @@ import {
 } from './process-offers-file.js'
 import type { OfferRepository } from './offer-repository.js'
 import type { Offer } from './offer.js'
-import type { DownloadMetadata } from './update-cef-offers.js'
 
 function makeOffer(overrides: Partial<Offer> = {}): Offer {
   return {
@@ -30,8 +29,6 @@ function createMockDeps() {
     .fn()
     .mockResolvedValue([])
 
-  const insert: Mock = vi.fn().mockResolvedValue('fake-download-id')
-
   const offerRepo: OfferRepository = {
     findExistingOffers: vi.fn().mockResolvedValue(new Map()),
     insertVersions: vi.fn().mockResolvedValue(undefined),
@@ -41,57 +38,24 @@ function createMockDeps() {
 
   const deps: ProcessOffersFileDeps = {
     parseOffers,
-    metadataRepo: { insert, findByContentHash: vi.fn().mockResolvedValue(undefined) },
     offerRepo,
   }
 
-  return { deps, parseOffers, insert, offerRepo }
-}
-
-function makeMetadata(): Omit<DownloadMetadata, 'fileSize'> {
-  return {
-    fileName: '2026-02-14.geral.abc12345.csv',
-    fileExtension: 'csv',
-    fileType: 'offer-list',
-    downloadUrl: 'https://cef.example.com/Lista_imoveis_geral.csv',
-    downloadedAt: new Date('2026-02-14T10:00:00Z'),
-    bucketName: 'test-bucket',
-    bucketKey: 'cef-downloads/offer-list/2026-02-14.geral.abc12345.csv',
-  }
+  return { deps, parseOffers, offerRepo }
 }
 
 describe('processOffersFile', () => {
-  it('records metadata, parses offers, and reconciles', async () => {
-    const { deps, parseOffers, insert } = createMockDeps()
+  it('parses offers and reconciles', async () => {
+    const { deps, parseOffers } = createMockDeps()
     parseOffers.mockResolvedValue([makeOffer()])
     const content = Buffer.from('csv-content')
-    const metadata = makeMetadata()
 
-    const result = await processOffersFile(content, metadata, deps)
+    const result = await processOffersFile(content, deps)
 
-    expect(insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ...metadata,
-        fileSize: content.length,
-      }),
-    )
     expect(parseOffers).toHaveBeenCalledWith(content)
     expect(result.fileSize).toBe(content.length)
     expect(result.totalOffers).toBe(1)
     expect(result.states).toBe(1)
-  })
-
-  it('passes download ID to reconcileOffers', async () => {
-    const { deps, parseOffers, offerRepo } = createMockDeps()
-    parseOffers.mockResolvedValue([makeOffer()])
-
-    await processOffersFile(Buffer.from('csv'), makeMetadata(), deps)
-
-    expect(offerRepo.insertDeleteVersions).toHaveBeenCalledWith(
-      'DF',
-      expect.any(Set),
-      'fake-download-id',
-    )
   })
 
   it('groups offers by UF and reconciles each state', async () => {
@@ -102,7 +66,7 @@ describe('processOffersFile', () => {
       makeOffer({ id: 'sp-1', uf: 'SP' }),
     ])
 
-    const result = await processOffersFile(Buffer.from('csv'), makeMetadata(), deps)
+    const result = await processOffersFile(Buffer.from('csv'), deps)
 
     expect(result.states).toBe(2)
     expect(result.totalOffers).toBe(3)
@@ -112,7 +76,7 @@ describe('processOffersFile', () => {
   it('handles empty offer list', async () => {
     const { deps, offerRepo } = createMockDeps()
 
-    const result = await processOffersFile(Buffer.from('csv'), makeMetadata(), deps)
+    const result = await processOffersFile(Buffer.from('csv'), deps)
 
     expect(result.totalOffers).toBe(0)
     expect(result.states).toBe(0)
@@ -127,7 +91,7 @@ describe('processOffersFile', () => {
       makeOffer({ id: '2', uf: 'MG' }),
     ])
 
-    const result = await processOffersFile(Buffer.from('csv'), makeMetadata(), deps)
+    const result = await processOffersFile(Buffer.from('csv'), deps)
 
     expect(result.results.has('RJ')).toBe(true)
     expect(result.results.has('MG')).toBe(true)

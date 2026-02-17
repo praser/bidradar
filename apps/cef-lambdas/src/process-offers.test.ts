@@ -20,7 +20,6 @@ vi.mock('@bidradar/core', async (importOriginal) => {
 
 vi.mock('@bidradar/db', () => ({
   createOfferRepository: vi.fn().mockReturnValue({}),
-  createDownloadMetadataRepository: vi.fn().mockReturnValue({}),
 }))
 
 vi.mock('./s3-file-store.js', () => ({
@@ -99,16 +98,7 @@ describe('process-offers handler', () => {
     expect(processOffersFile).toHaveBeenCalledWith(
       expect.any(Buffer),
       expect.objectContaining({
-        fileName: '2026-02-14.geral.abc12345.csv',
-        fileExtension: 'csv',
-        fileType: 'offer-list',
-        downloadUrl: expect.stringContaining('Lista_imoveis_geral.csv'),
-        bucketName: 'test-bucket',
-        bucketKey: 'cef-downloads/offer-list/2026-02-14.geral.abc12345.csv',
-      }),
-      expect.objectContaining({
         parseOffers: expect.any(Function),
-        metadataRepo: expect.any(Object),
         offerRepo: expect.any(Object),
       }),
     )

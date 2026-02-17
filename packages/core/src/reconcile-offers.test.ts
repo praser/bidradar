@@ -32,25 +32,20 @@ function createMockRepo(
   }
 }
 
-const DOWNLOAD_ID = 'test-download-id'
-
 describe('reconcileOffers', () => {
   it('inserts new offers', async () => {
     const repo = createMockRepo()
     const offers = [makeOffer({ id: 'new-1' }), makeOffer({ id: 'new-2' })]
 
-    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', offers, repo)
 
     expect(result.created).toBe(2)
     expect(result.updated).toBe(0)
     expect(result.skipped).toBe(0)
-    expect(repo.insertVersions).toHaveBeenCalledWith(
-      [
-        { offer: offers[0], version: 1, operation: 'insert' },
-        { offer: offers[1], version: 1, operation: 'insert' },
-      ],
-      DOWNLOAD_ID,
-    )
+    expect(repo.insertVersions).toHaveBeenCalledWith([
+      { offer: offers[0], version: 1, operation: 'insert' },
+      { offer: offers[1], version: 1, operation: 'insert' },
+    ])
   })
 
   it('updates changed offers', async () => {
@@ -60,15 +55,14 @@ describe('reconcileOffers', () => {
     const repo = createMockRepo(existingMap)
     const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', offers, repo)
 
     expect(result.created).toBe(0)
     expect(result.updated).toBe(1)
     expect(result.skipped).toBe(0)
-    expect(repo.insertVersions).toHaveBeenCalledWith(
-      [{ offer: offers[0], version: 2, operation: 'update' }],
-      DOWNLOAD_ID,
-    )
+    expect(repo.insertVersions).toHaveBeenCalledWith([
+      { offer: offers[0], version: 2, operation: 'update' },
+    ])
   })
 
   it('skips unchanged offers', async () => {
@@ -78,7 +72,7 @@ describe('reconcileOffers', () => {
     const repo = createMockRepo(existingMap)
     const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', offers, repo)
 
     expect(result.created).toBe(0)
     expect(result.updated).toBe(0)
@@ -93,27 +87,25 @@ describe('reconcileOffers', () => {
     const repo = createMockRepo(existingMap)
     const offers = [makeOffer({ id: 'offer-1' })]
 
-    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', offers, repo)
 
     expect(result.created).toBe(1)
     expect(result.updated).toBe(0)
-    expect(repo.insertVersions).toHaveBeenCalledWith(
-      [{ offer: offers[0], version: 4, operation: 'insert' }],
-      DOWNLOAD_ID,
-    )
+    expect(repo.insertVersions).toHaveBeenCalledWith([
+      { offer: offers[0], version: 4, operation: 'insert' },
+    ])
   })
 
   it('inserts delete versions for missing offers', async () => {
     const repo = createMockRepo()
     ;(repo.insertDeleteVersions as ReturnType<typeof vi.fn>).mockResolvedValue(3)
 
-    const result = await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', [makeOffer()], repo)
 
     expect(result.removed).toBe(3)
     expect(repo.insertDeleteVersions).toHaveBeenCalledWith(
       'DF',
       new Set(['offer-1']),
-      DOWNLOAD_ID,
     )
   })
 
@@ -123,7 +115,7 @@ describe('reconcileOffers', () => {
     ])
     const repo = createMockRepo(existingMap)
 
-    await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID)
+    await reconcileOffers('DF', [makeOffer()], repo)
 
     expect(repo.insertVersions).not.toHaveBeenCalled()
   })
@@ -132,7 +124,7 @@ describe('reconcileOffers', () => {
     const repo = createMockRepo()
     const steps: ReconcileStep[] = []
 
-    await reconcileOffers('DF', [makeOffer()], repo, DOWNLOAD_ID, (step) =>
+    await reconcileOffers('DF', [makeOffer()], repo, (step) =>
       steps.push(step),
     )
 
@@ -147,7 +139,7 @@ describe('reconcileOffers', () => {
   it('handles empty offers array', async () => {
     const repo = createMockRepo()
 
-    const result = await reconcileOffers('DF', [], repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', [], repo)
 
     expect(result).toEqual({ created: 0, updated: 0, skipped: 0, removed: 0 })
   })
@@ -164,7 +156,7 @@ describe('reconcileOffers', () => {
       makeOffer({ id: 'existing-same' }),
     ]
 
-    const result = await reconcileOffers('DF', offers, repo, DOWNLOAD_ID)
+    const result = await reconcileOffers('DF', offers, repo)
 
     expect(result.created).toBe(1)
     expect(result.updated).toBe(1)

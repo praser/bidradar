@@ -15,53 +15,23 @@ export const CEF_FILE_TYPES: readonly CefFileType[] = [
   'offer-details',
 ] as const
 
-export interface CefFileDescriptor {
-  readonly extension: string
-  readonly contentType: string
-  readonly downloadUrl: string
-  readonly hasUf: boolean
+const CEF_FILE_EXTENSIONS: Record<CefFileType, string> = {
+  'offer-list': 'csv',
+  'auctions-schedule': 'pdf',
+  'licensed-brokers': 'zip',
+  'accredited-auctioneers': 'pdf',
+  'offer-details': 'html',
 }
 
-export const CEF_BASE_URL = 'https://venda-imoveis.caixa.gov.br/listaweb'
-
-const CEF_FILE_DESCRIPTORS: Record<CefFileType, CefFileDescriptor> = {
-  'offer-list': {
-    extension: 'csv',
-    contentType: 'text/csv',
-    downloadUrl: `${CEF_BASE_URL}/Lista_imoveis_{uf}.csv`,
-    hasUf: true,
-  },
-  'auctions-schedule': {
-    extension: 'pdf',
-    contentType: 'application/pdf',
-    downloadUrl:
-      'https://www.caixa.gov.br/Downloads/habitacao-documentos-gerais/calendario-leiloes-imoveis-caixa.pdf',
-    hasUf: false,
-  },
-  'licensed-brokers': {
-    extension: 'zip',
-    contentType: 'application/zip',
-    downloadUrl: `${CEF_BASE_URL}/lista_corretores.zip`,
-    hasUf: false,
-  },
-  'accredited-auctioneers': {
-    extension: 'pdf',
-    contentType: 'application/pdf',
-    downloadUrl:
-      'https://www.caixa.gov.br/Downloads/habitacao-documentos-gerais/Relacao_Leiloeiros.pdf',
-    hasUf: false,
-  },
-  'offer-details': {
-    extension: 'html',
-    contentType: 'text/html',
-    downloadUrl:
-      'https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnimovel={sourceId}',
-    hasUf: false,
-  },
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  csv: 'text/csv',
+  pdf: 'application/pdf',
+  zip: 'application/zip',
+  html: 'text/html',
 }
 
-export function getCefFileDescriptor(fileType: CefFileType): CefFileDescriptor {
-  return CEF_FILE_DESCRIPTORS[fileType]
+export function contentTypeFromExtension(ext: string): string {
+  return EXTENSION_CONTENT_TYPES[ext] ?? 'application/octet-stream'
 }
 
 export function buildCefS3Key(params: {
@@ -73,19 +43,19 @@ export function buildCefS3Key(params: {
 }): string {
   const date = params.date ?? new Date().toISOString().split('T')[0]!
   const runId = params.runId ?? randomUUID().slice(0, 8)
-  const descriptor = getCefFileDescriptor(params.fileType)
+  const ext = CEF_FILE_EXTENSIONS[params.fileType]
 
   if (params.fileType === 'offer-list') {
     const uf = params.uf ?? 'geral'
-    return `cef-downloads/offer-list/${date}.${uf}.${runId}.${descriptor.extension}`
+    return `cef-downloads/offer-list/${date}.${uf}.${runId}.${ext}`
   }
 
   if (params.fileType === 'offer-details') {
     const offerId = params.offerId ?? 'unknown'
-    return `cef-downloads/offer-details/${offerId}/${date}.offer-details.${runId}.${descriptor.extension}`
+    return `cef-downloads/offer-details/${offerId}/${date}.offer-details.${runId}.${ext}`
   }
 
-  return `cef-downloads/${params.fileType}/${date}.${params.fileType}.${runId}.${descriptor.extension}`
+  return `cef-downloads/${params.fileType}/${date}.${params.fileType}.${runId}.${ext}`
 }
 
 export interface ParsedCefS3Key {
@@ -144,20 +114,3 @@ export function parseCefS3Key(key: string): ParsedCefS3Key {
   }
 }
 
-export function buildCefDownloadUrl(
-  fileType: CefFileType,
-  options?: { uf?: string; sourceId?: string },
-): string {
-  const descriptor = getCefFileDescriptor(fileType)
-  let url = descriptor.downloadUrl
-
-  if (descriptor.hasUf && options?.uf) {
-    url = url.replace('{uf}', options.uf)
-  }
-
-  if (options?.sourceId) {
-    url = url.replace('{sourceId}', options.sourceId)
-  }
-
-  return url
-}

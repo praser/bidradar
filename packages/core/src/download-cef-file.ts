@@ -3,8 +3,7 @@ import type { FileStore, DownloadMetadataRepository } from './update-cef-offers.
 import {
   type CefFileType,
   buildCefS3Key,
-  buildCefDownloadUrl,
-  getCefFileDescriptor,
+  contentTypeFromExtension,
 } from './cef-file.js'
 
 export interface DownloadCefFileDeps {
@@ -24,14 +23,9 @@ export interface DownloadCefFileResult {
 export async function downloadCefFile(
   fileType: CefFileType,
   deps: DownloadCefFileDeps,
-  options?: { uf?: string },
+  options: { url: string; uf?: string; offerId?: string },
 ): Promise<DownloadCefFileResult> {
-  const descriptor = getCefFileDescriptor(fileType)
-  const downloadUrlOptions: { uf?: string } = {}
-  if (options?.uf) {
-    downloadUrlOptions.uf = options.uf
-  }
-  const url = buildCefDownloadUrl(fileType, downloadUrlOptions)
+  const url = options.url
 
   const content = await deps.fetchBinary(url)
   const contentHash = createHash('sha256').update(content).digest('hex')
@@ -46,20 +40,24 @@ export async function downloadCefFile(
   }
 
   const s3KeyParams: Parameters<typeof buildCefS3Key>[0] = { fileType }
-  if (options?.uf) {
+  if (options.uf) {
     s3KeyParams.uf = options.uf
   }
+  if (options.offerId) {
+    s3KeyParams.offerId = options.offerId
+  }
   const s3Key = buildCefS3Key(s3KeyParams)
+  const ext = s3Key.split('.').pop()!
   const { bucketName, bucketKey } = await deps.fileStore.store({
     key: s3Key,
     content,
-    contentType: descriptor.contentType,
+    contentType: contentTypeFromExtension(ext),
   })
 
   const fileName = s3Key.split('/').pop()!
   const downloadId = await deps.metadataRepo.insert({
     fileName,
-    fileExtension: descriptor.extension,
+    fileExtension: ext,
     fileSize: content.length,
     fileType,
     downloadUrl: url,

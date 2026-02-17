@@ -58,7 +58,6 @@ const sampleRow = {
   offerUrl: 'https://example.com/offer/1',
   version: 1,
   operation: 'insert',
-  downloadId: null,
   createdAt: new Date('2024-01-01'),
 }
 

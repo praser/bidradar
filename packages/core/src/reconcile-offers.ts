@@ -18,7 +18,6 @@ export async function reconcileOffers(
   uf: string,
   offers: readonly Offer[],
   repo: OfferRepository,
-  downloadId: string,
   onProgress?: (step: ReconcileStep) => void,
 ): Promise<ReconcileResult> {
   const activeSourceIds = new Set(offers.map((o) => o.id))
@@ -56,11 +55,11 @@ export async function reconcileOffers(
 
   onProgress?.({ step: 'inserting', count: toInsert.length })
   if (toInsert.length > 0) {
-    await repo.insertVersions(toInsert, downloadId)
+    await repo.insertVersions(toInsert)
   }
 
   onProgress?.({ step: 'removing' })
-  const removed = await repo.insertDeleteVersions(uf, activeSourceIds, downloadId)
+  const removed = await repo.insertDeleteVersions(uf, activeSourceIds)
 
   return { created, updated, skipped, removed }
 }
