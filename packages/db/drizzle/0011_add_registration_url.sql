@@ -1,8 +1,10 @@
 DROP VIEW IF EXISTS "current_offers";
 --> statement-breakpoint
-ALTER TABLE "offers" DROP CONSTRAINT "offers_download_id_download_metadata_id_fk";
+ALTER TABLE "offers" ADD COLUMN "registration_url" text;
 --> statement-breakpoint
-ALTER TABLE "offers" DROP COLUMN "download_id";
+UPDATE "offers" SET "registration_url" = 'https://venda-imoveis.caixa.gov.br/editais/matricula/' || uf || '/' || source_id || '.pdf';
+--> statement-breakpoint
+ALTER TABLE "offers" ALTER COLUMN "registration_url" SET NOT NULL;
 --> statement-breakpoint
 CREATE VIEW "current_offers" AS
 SELECT * FROM (

@@ -43,6 +43,7 @@ export async function seedOffers(count: number = 3) {
     propertyType: 'Apartamento',
     sellingType: 'Licitacao Aberta',
     offerUrl: `https://example.com/offers/${String(i + 1)}`,
+    registrationUrl: `https://venda-imoveis.caixa.gov.br/editais/matricula/${i % 2 === 0 ? 'DF' : 'SP'}/test-offer-${String(i + 1)}.pdf`,
     version: 1,
     operation: 'insert',
     createdAt: new Date(),

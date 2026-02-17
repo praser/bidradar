@@ -448,6 +448,7 @@ describe('GET /offers', () => {
       expect(offer).toHaveProperty('propertyType')
       expect(offer).toHaveProperty('sellingType')
       expect(offer).toHaveProperty('offerUrl')
+      expect(offer).toHaveProperty('registrationUrl')
 
       expect(typeof offer.askingPrice).toBe('number')
       expect(typeof offer.evaluationPrice).toBe('number')

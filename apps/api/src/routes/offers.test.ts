@@ -16,6 +16,7 @@ vi.mock('@bidradar/db', () => {
     propertyType: { name: 'propertyType' },
     sellingType: { name: 'sellingType' },
     offerUrl: { name: 'offerUrl' },
+    registrationUrl: { name: 'registrationUrl' },
     createdAt: { name: 'createdAt' },
   }
 
@@ -56,6 +57,7 @@ const sampleRow = {
   propertyType: 'Apartamento',
   sellingType: 'Venda Direta',
   offerUrl: 'https://example.com/offer/1',
+  registrationUrl: 'https://venda-imoveis.caixa.gov.br/editais/matricula/DF/offer-1.pdf',
   version: 1,
   operation: 'insert',
   createdAt: new Date('2024-01-01'),

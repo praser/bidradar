@@ -29,6 +29,7 @@ describe('CefOffer', () => {
     expect(offer.description).toBe('Apartamento, 80.00 de área total, 2 qto(s)')
     expect(offer.sellingType).toBe('Venda Direta')
     expect(offer.offerUrl).toBe('https://example.com/offer/12345')
+    expect(offer.registrationUrl).toBe('https://venda-imoveis.caixa.gov.br/editais/matricula/DF/12345.pdf')
   })
 
   it('extracts propertyType from description', () => {
@@ -75,6 +76,7 @@ describe('CefOffer', () => {
     expect(typeof offer.propertyType).toBe('string')
     expect(typeof offer.sellingType).toBe('string')
     expect(typeof offer.offerUrl).toBe('string')
+    expect(typeof offer.registrationUrl).toBe('string')
   })
 
   it('handles empty propertyType from description', () => {

@@ -21,6 +21,7 @@ function offerToRow(
     propertyType: offer.propertyType,
     sellingType: offer.sellingType,
     offerUrl: offer.offerUrl,
+    registrationUrl: offer.registrationUrl,
     version: params.version,
     operation: params.operation,
   }
@@ -43,7 +44,8 @@ function offerEquals(row: OfferRow, offer: Offer): boolean {
     row.description === offer.description &&
     row.propertyType === offer.propertyType &&
     row.sellingType === offer.sellingType &&
-    row.offerUrl === offer.offerUrl
+    row.offerUrl === offer.offerUrl &&
+    row.registrationUrl === offer.registrationUrl
   )
 }
 
@@ -192,6 +194,7 @@ export function createOfferRepository(): OfferRepository {
           propertyType: row.propertyType,
           sellingType: row.sellingType,
           offerUrl: row.offerUrl,
+          registrationUrl: row.registrationUrl,
           version: row.version + 1,
           operation: 'delete',
         }))
