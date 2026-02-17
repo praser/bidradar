@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-17
+
+### Features
+
+- Add browser-based download with screenshot capture (e98bc00)
+- Add registrationUrl field to Offer (a48d95b)
+- Add useZyte option to download handler payload (8e4efae)
+- Replace download cron lambdas with single SQS-triggered handler (298f4ce)
+
+### Bug Fixes
+
+- Add registrationUrl to seedOffers and response shape assertion (5a79312)
+- Drop view before removing dependent column in migration (2c59d00)
+
+### Refactoring
+
+- Remove CefFileDescriptor, derive extension/contentType from S3 key (f4f19ab)
+- Remove buildCefDownloadUrl in favor of SQS-provided URLs (34f0848)
+
+### Other
+
+- Merge pull request #21 from praser/bugfix-download-from-aws (ddf0b44)
+- Merge pull request #19 from praser/bugfix-download-from-aws (9bc0a93)
+- Use zyte to download files (53d1fe1)
+
 ## [0.4.1] - 2026-02-16
 
 ### Bug Fixes
