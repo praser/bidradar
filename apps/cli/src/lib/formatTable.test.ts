@@ -15,6 +15,7 @@ const sampleOffer: Offer = {
   propertyType: 'Apartamento',
   sellingType: 'Licitacao',
   offerUrl: 'https://example.com/offer/abc-123',
+  registrationUrl: 'https://venda-imoveis.caixa.gov.br/editais/matricula/DF/abc-123.pdf',
 }
 
 describe('resolveColumns', () => {

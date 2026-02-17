@@ -28,22 +28,27 @@ const schema = z
       description,
       sellingType,
       offerUrl,
-    ]) => ({
-      id: id.trim(),
-      uf: uf.trim().toUpperCase(),
-      city: city.trim(),
-      neighborhood: neighborhood.trim(),
-      address: address.trim(),
-      askingPrice: Number(askingPrice.replaceAll('.', '').replace(',', '.')),
-      evaluationPrice: Number(
-        evaluationPrice.replaceAll('.', '').replace(',', '.'),
-      ),
-      discountPercent: Number(discountPercent),
-      description: description.trim(),
-      propertyType: description.trim().split(', ')[0] ?? '',
-      sellingType: sellingType.trim(),
-      offerUrl: new URL(offerUrl).toString(),
-    }),
+    ]) => {
+      const trimmedId = id.trim()
+      const trimmedUf = uf.trim().toUpperCase()
+      return {
+        id: trimmedId,
+        uf: trimmedUf,
+        city: city.trim(),
+        neighborhood: neighborhood.trim(),
+        address: address.trim(),
+        askingPrice: Number(askingPrice.replaceAll('.', '').replace(',', '.')),
+        evaluationPrice: Number(
+          evaluationPrice.replaceAll('.', '').replace(',', '.'),
+        ),
+        discountPercent: Number(discountPercent),
+        description: description.trim(),
+        propertyType: description.trim().split(', ')[0] ?? '',
+        sellingType: sellingType.trim(),
+        offerUrl: new URL(offerUrl).toString(),
+        registrationUrl: `https://venda-imoveis.caixa.gov.br/editais/matricula/${trimmedUf}/${trimmedId}.pdf`,
+      }
+    },
   )
 
 export class CefOffer implements Offer {
@@ -59,6 +64,7 @@ export class CefOffer implements Offer {
   readonly propertyType: string
   readonly sellingType: string
   readonly offerUrl: string
+  readonly registrationUrl: string
 
   constructor(input: Array<string>) {
     const parsed = schema.parse(input)
@@ -74,5 +80,6 @@ export class CefOffer implements Offer {
     this.propertyType = parsed.propertyType
     this.sellingType = parsed.sellingType
     this.offerUrl = parsed.offerUrl
+    this.registrationUrl = parsed.registrationUrl
   }
 }

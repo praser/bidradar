@@ -52,6 +52,7 @@ export const offers = pgTable(
     propertyType: text('property_type').notNull().default(''),
     sellingType: text('selling_type').notNull(),
     offerUrl: text('offer_url').notNull(),
+    registrationUrl: text('registration_url').notNull(),
     version: integer('version').notNull().default(1),
     operation: text('operation').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -80,6 +81,7 @@ export const currentOffers = pgView('current_offers', {
   propertyType: text('property_type'),
   sellingType: text('selling_type'),
   offerUrl: text('offer_url'),
+  registrationUrl: text('registration_url'),
   version: integer('version'),
   operation: text('operation'),
   createdAt: timestamp('created_at', { withTimezone: true }),

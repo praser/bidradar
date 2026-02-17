@@ -13,6 +13,7 @@ export interface Offer {
   propertyType: string
   sellingType: string
   offerUrl: string
+  registrationUrl: string
 }
 
 export const OfferSchema = z.object({
@@ -27,7 +28,8 @@ export const OfferSchema = z.object({
   description: z.string(),
   propertyType: z.string(),
   sellingType: z.string(),
-  offerUrl: z.string().url(),
+  offerUrl: z.url(),
+  registrationUrl: z.url(),
 })
 
 export type GetOffers = (uf?: string) => Promise<Offer[]>

@@ -76,6 +76,7 @@ export function offerRoutes() {
       propertyType: row.propertyType!,
       sellingType: row.sellingType!,
       offerUrl: row.offerUrl!,
+      registrationUrl: row.registrationUrl!,
     }))
 
     return c.json({

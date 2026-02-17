@@ -60,6 +60,7 @@ describe('query command', () => {
         propertyType: 'Apartamento',
         sellingType: 'Venda Direta',
         offerUrl: 'https://example.com/offer/1',
+        registrationUrl: 'https://venda-imoveis.caixa.gov.br/editais/matricula/DF/1.pdf',
       },
     ],
     pagination: { page: 1, pageSize: 50, total: 1 },
