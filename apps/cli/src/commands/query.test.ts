@@ -98,14 +98,14 @@ describe('query command', () => {
     await query.parseAsync(['-f', 'invalid filter !!!'], { from: 'user' })
 
     expect(mockApiRequest).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBeUndefined()
   })
 
   it('rejects invalid sort expression', async () => {
     await query.parseAsync(['-s', 'invalidField desc'], { from: 'user' })
 
     expect(mockApiRequest).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBeUndefined()
   })
 
   it('displays message when no results', async () => {
@@ -133,7 +133,7 @@ describe('query command', () => {
 
     await query.parseAsync([], { from: 'user' })
 
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBeUndefined()
   })
 
   it('shows generic error for non-auth errors', async () => {

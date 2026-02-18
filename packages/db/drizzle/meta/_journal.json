@@ -85,6 +85,20 @@
       "when": 1771286400000,
       "tag": "0011_add_registration_url",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1771372800000,
+      "tag": "0012_add_api_keys_worker_heartbeats",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1771459200000,
+      "tag": "0013_unique_api_key_name_per_user",
+      "breakpoints": true
     }
   ]
 }

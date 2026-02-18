@@ -108,14 +108,14 @@ apiKey
 apiKey
   .command('revoke')
   .description('Revoke an API key')
-  .argument('<id>', 'ID of the API key to revoke')
-  .action(async (id: string) => {
+  .argument('<name>', 'Name of the API key to revoke')
+  .action(async (name: string) => {
     const spinner = ora()
     try {
       spinner.start('Revoking API key...')
       const result = await apiRequest<RevokeApiKeyResponse>(
         'DELETE',
-        `/api-keys/${id}`,
+        `/api-keys/${encodeURIComponent(name)}`,
       )
 
       if (result.revoked) {

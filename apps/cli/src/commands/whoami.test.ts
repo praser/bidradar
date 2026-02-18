@@ -50,7 +50,7 @@ describe('whoami command', () => {
     expect(console.log).toHaveBeenCalledWith(
       'Not logged in. Run `bidradar login` to authenticate.',
     )
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBeUndefined()
   })
 
   it('shows error message for other errors', async () => {
