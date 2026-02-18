@@ -33,7 +33,7 @@ packages/core         ──> (no workspace deps, only zod)
 | `packages/cef` | CEF CSV downloader and parser, converts raw CSV rows into domain `Offer` objects via Zod |
 | `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, management (S3 upload URLs), users |
 | `apps/cli` | Commander-based CLI: login, logout, whoami, query, manager (download/upload) commands. Bundled with tsup |
-| `infra/aws` | SST v3 infrastructure: Lambda function URL with secrets |
+| `infra/cloud` | SST v3 infrastructure: Lambda function URL with secrets |
 
 ### Key data flow
 
@@ -165,7 +165,7 @@ pnpm dev:cli -- manager download offer-list
 | `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
 | `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
 | `apps/cli/src/commands/management.ts` | Manager command: download CEF files and upload to S3 |
-| `infra/aws/api.ts` | SST Lambda function URL definition |
+| `infra/cloud/api.ts` | SST Lambda function URL definition |
 | `sst.config.ts` | SST app config |
 | `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
 | `.github/workflows/release.yml` | Release pipeline (version bump, deploy staging, E2E, deploy prod, publish) |
@@ -196,7 +196,7 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 
 - **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
 - **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, API URLs stored in SSM Parameter Store (`/bidradar/{env}/api-url`)
-- **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
+- **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/cloud/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
 - **Release**: Automated on merge to main -- version bump from conventional commits, deploy to staging, E2E against staging, deploy to prod, CLI tarball + GitHub Release + Homebrew tap (`.github/workflows/release.yml`)
 
@@ -210,7 +210,7 @@ Each environment is a fully independent SST stage with its own Lambda function, 
 | `prod` | `--stage prod` | `/bidradar/prod/api-url` | Automatic after staging E2E tests pass |
 | Personal | `--stage <name>` | `/bidradar/<name>/api-url` | Manual deploy |
 
-- SSM parameters are the single source of truth for API URLs — created by SST during deploy (`infra/aws/api.ts`)
+- SSM parameters are the single source of truth for API URLs — created by SST during deploy (`infra/cloud/api.ts`)
 - The release pipeline reads URLs from SSM after deploying each stage
 - E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment, default `staging`)
 - Rollback: redeploy a previous commit (`git checkout <tag> && npx sst deploy --stage prod`) or revert on main

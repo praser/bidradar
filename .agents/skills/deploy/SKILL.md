@@ -91,6 +91,6 @@ DATABASE_URL="postgresql://..." pnpm db:migrate
 
 ## Important
 
-- The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` is **required** for the Lambda function URL to accept requests. Never remove it.
+- The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/cloud/api.ts` is **required** for the Lambda function URL to accept requests. Never remove it.
 - SST config uses `removal: "retain"` for `staging` and `prod` stages to prevent accidental resource deletion.
 - Each stage creates its own SSM parameter at `/bidradar/{stage}/api-url` and `/bidradar/{stage}/sqs-queue-url`.

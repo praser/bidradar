@@ -10,7 +10,7 @@ export default $config({
     };
   },
   async run() {
-    await import("./infra/aws/api");
-    await import("./infra/aws/update-cef-offers");
+    await import("./infra/cloud/api");
+    await import("./infra/cloud/update-cef-offers");
   },
 });
