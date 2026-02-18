@@ -138,7 +138,7 @@ mkdir -p "${INSTALL_DIR}/worker/dist"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "$INSTALL_DIR"
 success "Directories ready at ${INSTALL_DIR}"
 
-# ── 4. Deploy worker bundle ────────────────────────────────────────
+# ── 4. Deploy worker bundle ──────────────────────────────────────────
 info "Copying worker bundle..."
 cp "$BUNDLE_FILE" "${INSTALL_DIR}/worker/dist/index.js"
 chown "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}/worker/dist/index.js"
