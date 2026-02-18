@@ -1,6 +1,6 @@
 # Bidradar Worker
 
-Long-running daemon that polls AWS SQS for file download tasks, fetches files from CEF (using plain HTTP, Puppeteer browser automation, or Zyte proxy), uploads them to S3, and reports health via API heartbeats.
+Long-running daemon that polls AWS SQS for file download tasks, fetches files from CEF (using plain HTTP or Puppeteer browser automation), uploads them to S3, and reports health via API heartbeats.
 
 ## Quick install (Ubuntu 24)
 
@@ -25,7 +25,7 @@ cd /tmp/bidradar-worker
 sudo ./install.sh
 ```
 
-The script will interactively prompt for all required credentials (AWS keys, SQS queue URL, S3 bucket, API URL, API key) and optional settings (Zyte API key, worker ID, log level).
+The script will interactively prompt for all required credentials (AWS keys, SQS queue URL, S3 bucket, API URL, API key) and optional settings (worker ID, log level).
 
 ## Manual setup
 
@@ -122,9 +122,6 @@ AWS_REGION=us-east-1
 WORKER_ID=worker-ubuntu-01
 RATE_LIMIT_DELAY_MS=1000
 LOG_LEVEL=INFO
-
-# Only if using Zyte proxy (optional)
-# ZYTE_API_KEY=your-zyte-key
 EOF
 
 sudo chmod 600 /opt/bidradar/.env.worker
@@ -178,4 +175,3 @@ The service is configured with `Restart=always` and `RestartSec=10`, so it autom
 | `WORKER_ID` | No | `os.hostname()` | Unique identifier reported in heartbeats |
 | `RATE_LIMIT_DELAY_MS` | No | `1000` | Delay (ms) between message completions |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
-| `ZYTE_API_KEY` | No | — | Zyte proxy API key (enables `useZyte` support) |

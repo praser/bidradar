@@ -12,7 +12,7 @@ export const secrets = {
   GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId", process.env.GOOGLE_CLIENT_ID),
   GOOGLE_CLIENT_SECRET: new sst.Secret("GoogleClientSecret", process.env.GOOGLE_CLIENT_SECRET),
   ADMIN_EMAILS: new sst.Secret("AdminEmails", process.env.ADMIN_EMAILS),
-  ZYTE_API_KEY: new sst.Secret("ZyteApiKey", process.env.ZYTE_API_KEY),
+
 };
 
 const api = new sst.aws.Function("Api", {

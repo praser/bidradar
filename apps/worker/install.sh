@@ -50,14 +50,6 @@ prompt_secret() {
   eval "$var_name=\"\$value\""
 }
 
-prompt_optional_secret() {
-  local var_name="$1" prompt_text="$2"
-  local value
-  read -srp "$(echo -e "${BOLD}${prompt_text}${NC} (leave blank to skip): ")" value
-  echo
-  eval "$var_name=\"\$value\""
-}
-
 # ── Pre-flight checks ──────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
   error "This script must be run as root (sudo)."
@@ -170,12 +162,6 @@ prompt        WORKER_ID            "Worker ID"                        "$(hostnam
 prompt        RATE_LIMIT_DELAY_MS  "Rate limit delay (ms)"            "1000"
 prompt        LOG_LEVEL            "Log level (DEBUG/INFO/WARN/ERROR)" "INFO"
 
-echo
-echo -e "${BOLD}── Optional ──${NC}"
-echo
-
-prompt_optional_secret ZYTE_API_KEY "Zyte proxy API key"
-
 # ── 6. Write environment file ───────────────────────────────────────
 info "Writing environment file..."
 
@@ -189,10 +175,6 @@ WORKER_ID=${WORKER_ID}
 RATE_LIMIT_DELAY_MS=${RATE_LIMIT_DELAY_MS}
 LOG_LEVEL=${LOG_LEVEL}
 EOF
-
-if [[ -n "$ZYTE_API_KEY" ]]; then
-  echo "ZYTE_API_KEY=${ZYTE_API_KEY}" >> "$ENV_FILE"
-fi
 
 chmod 600 "$ENV_FILE"
 chown "${SERVICE_USER}:${SERVICE_USER}" "$ENV_FILE"

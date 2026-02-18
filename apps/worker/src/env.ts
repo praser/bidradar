@@ -26,7 +26,7 @@ const EnvSchema = z.object({
   BUCKET_NAME: z.string(),
   BIDRADAR_API_URL: z.string().url(),
   BIDRADAR_API_KEY: z.string(),
-  ZYTE_API_KEY: z.string().optional(),
+
   WORKER_ID: z.string().default(hostname()),
   RATE_LIMIT_DELAY_MS: z.coerce.number().default(1000),
   LOG_LEVEL: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR']).default('INFO'),
