@@ -36,9 +36,9 @@ export function apiKeyRoutes() {
       )
     }
 
-    const rawKey = randomBytes(32).toString('hex')
+    const rawKey = `br_${randomBytes(32).toString('hex')}`
     const keyHash = createHash('sha256').update(rawKey).digest('hex')
-    const keyPrefix = rawKey.slice(0, 8)
+    const keyPrefix = rawKey.slice(0, 11)
 
     const id = await repo.insert({
       name: parsed.data.name,
