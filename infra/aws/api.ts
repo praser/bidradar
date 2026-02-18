@@ -46,91 +46,18 @@ new aws.lambda.Permission("ApiPublicInvoke", {
 });
 
 // ---------------------------------------------------------------------------
-// Dual environments via Lambda aliases (dev / prod)
-// ---------------------------------------------------------------------------
-// - `dev` alias always points to $LATEST (updated on every deploy)
-// - `prod` alias initially points to $LATEST; CI promotes it to a published
-//   version after tests pass (via `aws lambda publish-version` +
-//   `aws lambda update-alias`)
-// - Each alias has its own function URL and invoke permission
+// SSM Parameter — single source of truth for the API URL
 // ---------------------------------------------------------------------------
 
-// Dev alias — always tracks $LATEST
-const devAlias = new aws.lambda.Alias("ApiDevAlias", {
-  name: "dev",
-  functionName: api.name,
-  functionVersion: "$LATEST",
+new aws.ssm.Parameter("SsmApiUrl", {
+  name: `/bidradar/${$app.stage}/api-url`,
+  type: "String",
+  value: api.url,
 });
-
-const devUrl = new aws.lambda.FunctionUrl("ApiDevUrl", {
-  functionName: api.name,
-  qualifier: "dev",
-  authorizationType: "NONE",
-}, { dependsOn: [devAlias] });
-
-new aws.lambda.Permission("ApiDevInvoke", {
-  function: api.name,
-  action: "lambda:InvokeFunction",
-  principal: "*",
-  qualifier: "dev",
-}, { dependsOn: [devAlias] });
-
-// Prod alias — starts at $LATEST, CI updates to a published version
-const prodAlias = new aws.lambda.Alias("ApiProdAlias", {
-  name: "prod",
-  functionName: api.name,
-  functionVersion: "$LATEST",
-});
-
-const prodUrl = new aws.lambda.FunctionUrl("ApiProdUrl", {
-  functionName: api.name,
-  qualifier: "prod",
-  authorizationType: "NONE",
-}, { dependsOn: [prodAlias] });
-
-new aws.lambda.Permission("ApiProdInvoke", {
-  function: api.name,
-  action: "lambda:InvokeFunction",
-  principal: "*",
-  qualifier: "prod",
-}, { dependsOn: [prodAlias] });
-
-// ---------------------------------------------------------------------------
-// SSM Parameters — single source of truth for API URLs
-// ---------------------------------------------------------------------------
-// Production stage creates two parameters (one per alias).
-// Personal stages create one parameter using the stage name.
-// ---------------------------------------------------------------------------
-
-if ($app.stage === "production") {
-  new aws.ssm.Parameter("SsmDevApiUrl", {
-    name: "/bidradar/dev/api-url",
-    type: "String",
-    value: devUrl.functionUrl,
-  });
-  new aws.ssm.Parameter("SsmProdApiUrl", {
-    name: "/bidradar/prod/api-url",
-    type: "String",
-    value: prodUrl.functionUrl,
-  });
-} else {
-  new aws.ssm.Parameter("SsmApiUrl", {
-    name: `/bidradar/${$app.stage}/api-url`,
-    type: "String",
-    value: devUrl.functionUrl,
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
-// `apiUrl` — the default SST function URL (backwards compatible)
-// `devApiUrl` — dev alias function URL
-// `prodApiUrl` — prod alias function URL
-// `apiName` — Lambda function name (needed by CI for version publishing)
-// ---------------------------------------------------------------------------
 
 export const apiUrl = api.url;
-export const devApiUrl = devUrl.functionUrl;
-export const prodApiUrl = prodUrl.functionUrl;
 export const apiName = api.name;

@@ -73,7 +73,7 @@ pnpm db:studio           # Open Drizzle Studio (port 4983)
 pnpm test                # Run unit & integration tests
 pnpm test:watch          # Run tests in watch mode
 pnpm test:e2e            # Run E2E tests (requires local PostgreSQL)
-pnpm test:e2e:live       # Run E2E tests against deployed dev Lambda
+pnpm test:e2e:live       # Run E2E tests against deployed staging Lambda
 pnpm typecheck           # Typecheck all packages
 ```
 
@@ -165,13 +165,13 @@ pnpm dev:cli -- manager download offer-list
 | `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
 | `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
 | `apps/cli/src/commands/management.ts` | Manager command: download CEF files and upload to S3 |
-| `infra/aws/api.ts` | SST Lambda function URL definition + dual env aliases (dev/prod) |
+| `infra/aws/api.ts` | SST Lambda function URL definition |
 | `sst.config.ts` | SST app config |
 | `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
-| `.github/workflows/release.yml` | Release pipeline (version bump, deploy, promote, publish) |
+| `.github/workflows/release.yml` | Release pipeline (version bump, deploy staging, E2E, deploy prod, publish) |
 | `vitest.config.ts` | Unit/integration test config |
 | `vitest.config.e2e.ts` | E2E test config (local PostgreSQL) |
-| `vitest.config.e2e.live.ts` | E2E test config (live dev Lambda) |
+| `vitest.config.e2e.live.ts` | E2E test config (live staging Lambda) |
 | `apps/api/Dockerfile` | Multi-stage Docker build for API |
 | `scripts/bump-version.mjs` | Semver bump from conventional commits (`--dry` for detection) |
 | `scripts/generate-changelog.mjs` | Changelog generation from conventional commits |
@@ -198,24 +198,24 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 - **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, API URLs stored in SSM Parameter Store (`/bidradar/{env}/api-url`)
 - **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
-- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to dev, E2E against dev, promote to prod, CLI tarball + GitHub Release + Homebrew tap (`.github/workflows/release.yml`)
+- **Release**: Automated on merge to main -- version bump from conventional commits, deploy to staging, E2E against staging, deploy to prod, CLI tarball + GitHub Release + Homebrew tap (`.github/workflows/release.yml`)
 
 ### Environments
 
-The API runs on a single Lambda function with two aliases (`dev` and `prod`), each with its own function URL. Both environments share the same PostgreSQL database and SST secrets.
+Each environment is a fully independent SST stage with its own Lambda function, function URL, SQS queues, and database.
 
-| Environment | Lambda alias | SSM parameter | Updated by |
+| Environment | SST stage | SSM parameter | Updated by |
 |---|---|---|---|
-| `dev` | `dev` (tracks `$LATEST`) | `/bidradar/dev/api-url` | Every deploy via SST (automatic on merge to `main`) |
-| `prod` | `prod` (pinned to a published version) | `/bidradar/prod/api-url` | Every deploy via SST |
-| Personal (`--stage <name>`) | `dev` | `/bidradar/<name>/api-url` | Personal stage deploy |
+| `staging` | `--stage staging` | `/bidradar/staging/api-url` | Automatic on merge to `main` |
+| `prod` | `--stage prod` | `/bidradar/prod/api-url` | Automatic after staging E2E tests pass |
+| Personal | `--stage <name>` | `/bidradar/<name>/api-url` | Manual deploy |
 
 - SSM parameters are the single source of truth for API URLs — created by SST during deploy (`infra/aws/api.ts`)
-- The release pipeline reads URLs from SSM instead of using `aws lambda get-function-url-config`
-- E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment)
-- The release pipeline publishes a new Lambda version from `$LATEST` and updates the `prod` alias to point to it
-- Rollback: `aws lambda update-alias --function-name <name> --name prod --function-version <previous-version>`
+- The release pipeline reads URLs from SSM after deploying each stage
+- E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment, default `staging`)
+- Rollback: redeploy a previous commit (`git checkout <tag> && npx sst deploy --stage prod`) or revert on main
 - The CLI default API URL is baked in at build time via the `BIDRADAR_DEFAULT_API_URL` env var in `tsup.config.ts`. Release builds use the prod function URL; local dev defaults to `http://localhost:3000`
+- GitHub environments (`staging` and `prod`) scope secrets (`DATABASE_URL`, `JWT_SECRET`, etc.) per stage
 
 ### Conventional commits
 
@@ -240,10 +240,11 @@ All commits to `main` must follow the [Conventional Commits](https://www.convent
 
 1. **Determine Version** -- runs `node scripts/bump-version.mjs --dry` to compute semver bump from conventional commits since last tag
 2. **Static Checks & Tests** -- build, typecheck, unit tests
-3. **Deploy to Dev** -- `npx sst deploy --stage production`, captures dev URL and Lambda name
-4. **E2E Tests (Dev)** -- runs `pnpm test:e2e:live` against the deployed dev alias
-5. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, publishes Lambda version and promotes `prod` alias, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap
-6. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
+3. **Deploy to Staging** -- `npx sst deploy --stage staging`, runs migrations, captures staging URL
+4. **E2E Tests (Staging)** -- runs `pnpm test:e2e:live` against the deployed staging stage
+5. **Deploy to Prod** -- `npx sst deploy --stage prod`, runs migrations, captures prod URL
+6. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap
+7. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
 
 Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
 
@@ -262,7 +263,7 @@ pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.
 
 - Unit/integration tests: co-located with source as `*.test.ts` files (e.g., `packages/db/src/filter-to-drizzle.test.ts`)
 - E2E tests (local): `e2e/**/*.test.ts` -- require local PostgreSQL via Docker Compose
-- E2E tests (live): `e2e/live/**/*.test.ts` -- require `BIDRADAR_API_URL` env var pointing to deployed dev API
+- E2E tests (live): `e2e/live/**/*.test.ts` -- require `DEV_API_URL` env var or SSM parameter pointing to deployed staging API
 - Framework: Vitest (config files: `vitest.config.ts`, `vitest.config.e2e.ts`, `vitest.config.e2e.live.ts`)
 
 ## Environment variables
@@ -277,6 +278,5 @@ pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.
 | `PORT` | API listen port (default 3000, local only) |
 | `BUCKET_NAME` | S3 bucket name for CEF file uploads (set automatically by SST via `link`) |
 | `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
-| `BIDRADAR_API_URL` | API URL used by E2E live tests to target the deployed dev Lambda |
-| `DEV_API_URL` | Override API URL for E2E live tests (takes precedence over SSM lookup) |
-| `BIDRADAR_ENV` | Environment name for SSM parameter lookup in E2E live tests (default `dev`) |
+| `DEV_API_URL` | API URL for E2E live tests (takes precedence over SSM lookup) |
+| `BIDRADAR_ENV` | Environment name for SSM parameter lookup in E2E live tests (default `staging`) |

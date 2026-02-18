@@ -1,6 +1,6 @@
 ---
 name: release
-description: Manage bidradar releases including automated version bumping from conventional commits, deploying to dev, E2E testing, and promoting to prod. Use when checking release status, understanding the release flow, or rolling back.
+description: Manage bidradar releases including automated version bumping from conventional commits, deploying to staging and prod, and E2E testing. Use when checking release status, understanding the release flow, or rolling back.
 ---
 
 # Release
@@ -15,13 +15,15 @@ Releases are **fully automated** on merge to `main` (`.github/workflows/release.
 2. Merging to `main` triggers the Release workflow
 3. `scripts/bump-version.mjs --dry` determines the semver bump from conventional commits since the last tag
 4. Static checks + unit tests run
-5. SST deploys to AWS (`dev` alias updated to `$LATEST`)
-6. E2E tests run against the deployed `dev` Lambda
-7. Version is bumped across all 7 `package.json` files, `CHANGELOG.md` is generated, commit + tag are pushed
-8. Lambda version is published and `prod` alias is promoted
+5. SST deploys to staging (`npx sst deploy --stage staging`) + database migrations
+6. E2E tests run against the deployed staging Lambda
+7. SST deploys to prod (`npx sst deploy --stage prod`) + database migrations
+8. Version is bumped across all 7 `package.json` files, `CHANGELOG.md` is generated, commit + tag are pushed
 9. CLI is built with prod URL baked in, GitHub Release is created with tarball, Homebrew tap is updated
 
 Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
+
+Secrets are scoped per GitHub environment (`staging` and `prod`), each providing its own `DATABASE_URL`, `JWT_SECRET`, and other credentials.
 
 ## Conventional commits
 
@@ -61,15 +63,17 @@ gh run view <run-id>
 
 ## Rolling back
 
-### Rollback Lambda (prod)
+### Rollback prod
+
+Redeploy a previous known-good commit:
 
 ```bash
-# List recent versions
-aws lambda list-versions-by-function --function-name <function-name> --max-items 10
-
-# Roll back prod alias to a previous version
-aws lambda update-alias --function-name <function-name> --name prod --function-version <previous-version>
+git checkout v<previous-version>
+npx sst deploy --stage prod
+DATABASE_URL="postgresql://..." pnpm db:migrate
 ```
+
+Or revert the problematic commit on `main` and let the pipeline redeploy both stages.
 
 ### Rollback a GitHub Release
 

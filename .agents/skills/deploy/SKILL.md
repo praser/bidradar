@@ -1,11 +1,11 @@
 ---
 name: deploy
-description: Deploy the bidradar API to AWS using SST with dual environments (dev/prod via Lambda aliases), manage secrets, run database migrations, and promote releases. Use when deploying, releasing, or managing infrastructure.
+description: Deploy the bidradar API to AWS using SST with separate staging and prod stages, manage secrets, and run database migrations. Use when deploying, releasing, or managing infrastructure.
 ---
 
 # Deploy
 
-Deploy the bidradar API to AWS using SST with dual environments.
+Deploy the bidradar API to AWS using SST with separate stages per environment.
 
 ## Local development
 
@@ -17,53 +17,48 @@ pnpm dev:api            # Start API on localhost:3000
 
 ## SST deployment
 
-The API runs on a single Lambda function with two aliases (`dev` and `prod`) that point to specific function versions. Each alias has its own function URL.
+Each environment is a fully independent SST stage with its own Lambda function, function URL, SQS queues, and SSM parameters.
 
 ```bash
-npx sst deploy --stage production    # Deploy to AWS (production stage)
-npx sst dev                          # SST live development mode
-npx sst remove --stage <stage>       # Tear down a stage
+npx sst deploy --stage staging   # Deploy to staging
+npx sst deploy --stage prod      # Deploy to prod
+npx sst dev                      # SST live development mode
+npx sst remove --stage <stage>   # Tear down a stage
 ```
 
 ### Setting secrets
 
+Secrets are scoped per stage. Set them for each stage you deploy:
+
 ```bash
-npx sst secret set DatabaseUrl "postgresql://..."
-npx sst secret set JwtSecret "your-secret-at-least-32-chars"
-npx sst secret set GoogleClientId "xxx.apps.googleusercontent.com"
-npx sst secret set GoogleClientSecret "xxx"
-npx sst secret set AdminEmails "user@gmail.com"
+npx sst secret set DatabaseUrl "postgresql://..." --stage staging
+npx sst secret set JwtSecret "your-secret-at-least-32-chars" --stage staging
+npx sst secret set GoogleClientId "xxx.apps.googleusercontent.com" --stage staging
+npx sst secret set GoogleClientSecret "xxx" --stage staging
+npx sst secret set AdminEmails "user@gmail.com" --stage staging
 ```
 
 ## Environments
 
-| Environment | Lambda alias | Promoted via |
+| Environment | SST stage | Updated by |
 |---|---|---|
-| `dev` | `dev` alias on latest version | Automatic on merge to `main` |
-| `prod` | `prod` alias on stable version | Manual promotion after validation |
+| `staging` | `--stage staging` | Automatic on merge to `main` |
+| `prod` | `--stage prod` | Automatic after staging E2E tests pass |
+| Personal | `--stage <name>` | Manual deploy |
 
-- **dev**: receives every merge to `main`. Used for integration/E2E testing.
-- **prod**: promoted manually from `dev` after E2E tests pass. Points to a known-good Lambda version.
-
-### Promoting dev to prod
-
-Promotion shifts the `prod` alias to point at the same Lambda version currently serving `dev`:
-
-```bash
-# Check which version dev is running
-aws lambda get-alias --function-name <function-name> --name dev
-
-# Promote dev version to prod
-aws lambda update-alias --function-name <function-name> --name prod --function-version <version>
-```
+- **staging**: deployed on every merge to `main`. Used for E2E testing before promoting to prod.
+- **prod**: deployed automatically after E2E tests pass against staging. Each stage has its own database.
 
 ### Rollback
 
-Roll `prod` back to a previous version:
+Rollback by redeploying a previous commit:
 
 ```bash
-aws lambda update-alias --function-name <function-name> --name prod --function-version <previous-version>
+git checkout <previous-tag>
+npx sst deploy --stage prod
 ```
+
+Or revert the commit on main and let the pipeline redeploy.
 
 ## Release process
 
@@ -71,10 +66,10 @@ Releases are fully automated on merge to `main`. The release workflow (`release.
 
 1. Determines semver bump from conventional commits
 2. Runs static checks + unit tests
-3. Deploys to dev via SST
-4. Runs E2E tests against dev Lambda
-5. Bumps versions, generates changelog, commits + tags
-6. Publishes Lambda version and promotes prod alias
+3. Deploys to staging via `npx sst deploy --stage staging` + runs migrations
+4. Runs E2E tests against staging
+5. Deploys to prod via `npx sst deploy --stage prod` + runs migrations
+6. Bumps versions, generates changelog, commits + tags
 7. Builds CLI with prod URL, creates GitHub Release with tarball, updates Homebrew tap
 
 See the `release` skill for more details.
@@ -86,9 +81,9 @@ docker compose up -d                    # Start PostgreSQL + API + Drizzle Studi
 docker compose up -d --build api        # Rebuild API image
 ```
 
-## Database migrations in production
+## Database migrations
 
-Run migrations against the production database:
+Each environment has its own database. Migrations are run as part of the release pipeline. To run manually:
 
 ```bash
 DATABASE_URL="postgresql://..." pnpm db:migrate
@@ -97,4 +92,5 @@ DATABASE_URL="postgresql://..." pnpm db:migrate
 ## Important
 
 - The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/aws/api.ts` is **required** for the Lambda function URL to accept requests. Never remove it.
-- SST config uses `removal: "retain"` for production stage to prevent accidental resource deletion.
+- SST config uses `removal: "retain"` for `staging` and `prod` stages to prevent accidental resource deletion.
+- Each stage creates its own SSM parameter at `/bidradar/{stage}/api-url` and `/bidradar/{stage}/sqs-queue-url`.

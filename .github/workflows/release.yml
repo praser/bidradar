@@ -17,17 +17,6 @@ permissions:
   issues: write
   id-token: write
 
-env:
-  ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-  JWT_SECRET: ${{ secrets.JWT_SECRET }}
-
 jobs:
   # ---------------------------------------------------------------------------
   # 1. Determine version bump from conventional commits
@@ -96,16 +85,16 @@ jobs:
       - run: pnpm test --passWithNoTests
 
   # ---------------------------------------------------------------------------
-  # 3. Deploy to dev Lambda via SST
+  # 3. Deploy to staging
   # ---------------------------------------------------------------------------
-  deploy-dev:
-    name: Deploy to Dev
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [version, checks]
     if: needs.version.outputs.skip != 'true'
+    environment: staging
     outputs:
-      dev_api_url: ${{ steps.sst-outputs.outputs.dev_api_url }}
-      lambda_name: ${{ steps.sst-outputs.outputs.lambda_name }}
+      staging_api_url: ${{ steps.sst-outputs.outputs.staging_api_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -125,45 +114,37 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy with SST
-        id: deploy
-        run: |
-          npx sst deploy --stage production
+        run: npx sst deploy --stage staging
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate
 
       - name: Read SST outputs
         id: sst-outputs
         run: |
-          # Find the Lambda function created by SST
-          LAMBDA_NAME=$(aws lambda list-functions \
-            --query "Functions[?starts_with(FunctionName, 'bidradar-production-Api')].FunctionName | [0]" \
-            --output text)
-
-          if [ -z "$LAMBDA_NAME" ] || [ "$LAMBDA_NAME" = "None" ]; then
-            echo "::error::Could not determine Lambda function name"
-            exit 1
-          fi
-
-          DEV_URL=$(aws ssm get-parameter \
-            --name /bidradar/dev/api-url \
+          STAGING_URL=$(aws ssm get-parameter \
+            --name /bidradar/staging/api-url \
             --query 'Parameter.Value' --output text)
 
-          if [ -z "$DEV_URL" ] || [ "$DEV_URL" = "None" ]; then
-            echo "::error::Could not determine dev API URL from SSM"
+          if [ -z "$STAGING_URL" ] || [ "$STAGING_URL" = "None" ]; then
+            echo "::error::Could not determine staging API URL from SSM"
             exit 1
           fi
 
-          echo "dev_api_url=$DEV_URL" >> "$GITHUB_OUTPUT"
-          echo "lambda_name=$LAMBDA_NAME" >> "$GITHUB_OUTPUT"
+          echo "staging_api_url=$STAGING_URL" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
-  # 4. E2E tests against dev Lambda
+  # 4. E2E tests against staging
   # ---------------------------------------------------------------------------
-  e2e-dev:
-    name: E2E Tests (Dev)
+  e2e-staging:
+    name: E2E Tests (Staging)
     runs-on: ubuntu-latest
-    needs: [version, deploy-dev]
+    needs: [version, deploy-staging]
     if: needs.version.outputs.skip != 'true'
     steps:
       - uses: actions/checkout@v4
@@ -179,18 +160,72 @@ jobs:
 
       - run: pnpm build
 
-      - name: Run E2E tests against dev
+      - name: Run E2E tests against staging
         env:
-          DEV_API_URL: ${{ needs.deploy-dev.outputs.dev_api_url }}
+          DEV_API_URL: ${{ needs.deploy-staging.outputs.staging_api_url }}
         run: pnpm test:e2e:live
 
   # ---------------------------------------------------------------------------
-  # 5. Release — tag, promote prod, CLI, Homebrew, Docker
+  # 5. Deploy to prod
+  # ---------------------------------------------------------------------------
+  deploy-prod:
+    name: Deploy to Prod
+    runs-on: ubuntu-latest
+    needs: [version, e2e-staging]
+    if: needs.version.outputs.skip != 'true'
+    environment: prod
+    outputs:
+      prod_api_url: ${{ steps.sst-outputs.outputs.prod_api_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ !env.ACT }}
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy with SST
+        run: npx sst deploy --stage prod
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate
+
+      - name: Read SST outputs
+        id: sst-outputs
+        run: |
+          PROD_URL=$(aws ssm get-parameter \
+            --name /bidradar/prod/api-url \
+            --query 'Parameter.Value' --output text)
+
+          if [ -z "$PROD_URL" ] || [ "$PROD_URL" = "None" ]; then
+            echo "::error::Could not determine prod API URL from SSM"
+            exit 1
+          fi
+
+          echo "prod_api_url=$PROD_URL" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 6. Release — tag, CLI, Homebrew
   # ---------------------------------------------------------------------------
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [version, deploy-dev, e2e-dev]
+    needs: [version, deploy-prod]
     if: needs.version.outputs.skip != 'true'
     steps:
       - uses: actions/checkout@v4
@@ -212,13 +247,6 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        if: ${{ !env.ACT }}
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       # --- Bump versions in all package.json files ---
       - name: Bump versions
@@ -249,40 +277,13 @@ jobs:
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
 
-      # --- Promote Lambda to prod ---
-      - name: Publish Lambda version and promote prod alias
-        env:
-          LAMBDA_NAME: ${{ needs.deploy-dev.outputs.lambda_name }}
-        run: |
-          # Publish a new version from $LATEST
-          PUBLISHED=$(aws lambda publish-version \
-            --function-name "$LAMBDA_NAME" \
-            --query 'Version' --output text)
-          echo "Published Lambda version: $PUBLISHED"
-
-          # Update prod alias to point to the published version
-          aws lambda update-alias \
-            --function-name "$LAMBDA_NAME" \
-            --name prod \
-            --function-version "$PUBLISHED"
-          echo "Promoted prod alias to version $PUBLISHED"
-
-      # --- Get prod URL for CLI build ---
-      - name: Get prod API URL
-        id: prod_url
-        run: |
-          PROD_URL=$(aws ssm get-parameter \
-            --name /bidradar/prod/api-url \
-            --query 'Parameter.Value' --output text)
-          echo "prod_api_url=$PROD_URL" >> "$GITHUB_OUTPUT"
-
       # --- Build all packages ---
       - run: pnpm build
 
       # --- Build CLI with prod URL baked in ---
       - name: Build CLI for release
         env:
-          BIDRADAR_DEFAULT_API_URL: ${{ steps.prod_url.outputs.prod_api_url }}
+          BIDRADAR_DEFAULT_API_URL: ${{ needs.deploy-prod.outputs.prod_api_url }}
         run: pnpm --filter @bidradar/cli build
 
       # --- Create CLI tarball ---
@@ -329,12 +330,12 @@ jobs:
           git push
 
   # ---------------------------------------------------------------------------
-  # 6. On failure — create GitHub issue
+  # 7. On failure — create GitHub issue
   # ---------------------------------------------------------------------------
   on-failure:
     name: Report Failure
     runs-on: ubuntu-latest
-    needs: [version, checks, deploy-dev, e2e-dev, release]
+    needs: [version, checks, deploy-staging, e2e-staging, deploy-prod, release]
     if: failure() && needs.version.outputs.skip != 'true'
     steps:
       - uses: actions/checkout@v4
@@ -344,10 +345,12 @@ jobs:
         run: |
           if [ "${{ needs.checks.result }}" = "failure" ]; then
             echo "step=Static Checks & Tests" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.deploy-dev.result }}" = "failure" ]; then
-            echo "step=Deploy to Dev" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.e2e-dev.result }}" = "failure" ]; then
-            echo "step=E2E Tests (Dev)" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.deploy-staging.result }}" = "failure" ]; then
+            echo "step=Deploy to Staging" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.e2e-staging.result }}" = "failure" ]; then
+            echo "step=E2E Tests (Staging)" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.deploy-prod.result }}" = "failure" ]; then
+            echo "step=Deploy to Prod" >> "$GITHUB_OUTPUT"
           elif [ "${{ needs.release.result }}" = "failure" ]; then
             echo "step=Release" >> "$GITHUB_OUTPUT"
           else

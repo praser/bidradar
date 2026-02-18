@@ -1,46 +1,45 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
-// Dead-letter queue for messages that fail processing after 3 attempts
-const dlq = new sst.aws.Queue("CefDownloadDLQ", {
-  visibilityTimeout: "11 minutes",
-  transform: {
-    queue: { name: `bidradar-${$app.stage}-cef-download-dlq` },
-  },
-});
+// ---------------------------------------------------------------------------
+// SQS Queues — CEF download processing
+// ---------------------------------------------------------------------------
 
-const queue = new sst.aws.Queue("CefDownloadQueue", {
-  visibilityTimeout: "11 minutes",
-  dlq: dlq.arn,
-  transform: {
-    queue: {
-      name: `bidradar-${$app.stage}-cef-download`,
-      redrivePolicy: $jsonStringify({
-        deadLetterTargetArn: dlq.arn,
-        maxReceiveCount: 3,
-      }),
+function createQueuePair(env: string) {
+  const id = env.charAt(0).toUpperCase() + env.slice(1);
+  const physicalName = env.toLowerCase();
+
+  const dlq = new sst.aws.Queue(`CefDownload${id}Dlq`, {
+    visibilityTimeout: "11 minutes",
+    transform: {
+      queue: { name: `bidradar-${physicalName}-cef-download-dlq` },
     },
-  },
-});
+  });
 
-// ---------------------------------------------------------------------------
-// SSM Parameters — queue URLs for the worker
-// ---------------------------------------------------------------------------
-if ($app.stage === "production") {
-  new aws.ssm.Parameter("SsmDevSqsQueueUrl", {
-    name: "/bidradar/dev/sqs-queue-url",
-    type: "String",
-    value: queue.url,
+  const queue = new sst.aws.Queue(`CefDownload${id}Queue`, {
+    visibilityTimeout: "11 minutes",
+    dlq: dlq.arn,
+    transform: {
+      queue: {
+        name: `bidradar-${physicalName}-cef-download`,
+        redrivePolicy: $jsonStringify({
+          deadLetterTargetArn: dlq.arn,
+          maxReceiveCount: 3,
+        }),
+      },
+    },
   });
-} else {
-  new aws.ssm.Parameter("SsmSqsQueueUrl", {
-    name: `/bidradar/${$app.stage}/sqs-queue-url`,
-    type: "String",
-    value: queue.url,
-  });
+
+  return { queue, dlq };
 }
 
 // ---------------------------------------------------------------------------
-// Exports
+// SSM Parameter — queue URL for the worker
 // ---------------------------------------------------------------------------
-export const queueUrl = queue.url;
-export const dlqUrl = dlq.url;
+
+const { queue } = createQueuePair($app.stage);
+
+new aws.ssm.Parameter("SsmSqsQueueUrl", {
+  name: `/bidradar/${$app.stage}/sqs-queue-url`,
+  type: "String",
+  value: queue.url,
+});
