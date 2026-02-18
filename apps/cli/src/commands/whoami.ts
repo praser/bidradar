@@ -17,7 +17,7 @@ export const whoami = new Command('whoami')
         console.error(
           `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
         )
+        process.exitCode = 1
       }
-      process.exitCode = 1
     }
   })

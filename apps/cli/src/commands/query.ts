@@ -40,7 +40,6 @@ export const query = new Command('query')
           } catch (err) {
             if (err instanceof FilterParseError) {
               console.error(`Filter syntax error: ${err.message}`)
-              process.exitCode = 1
               return
             }
             throw err
@@ -51,7 +50,6 @@ export const query = new Command('query')
           parseSort(opts.sort)
         } catch (err) {
           console.error(`Sort error: ${(err as Error).message}`)
-          process.exitCode = 1
           return
         }
 
@@ -93,8 +91,8 @@ export const query = new Command('query')
           spinner.fail(
             `Query failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
           )
+          process.exitCode = 1
         }
-        process.exitCode = 1
       }
     },
   )

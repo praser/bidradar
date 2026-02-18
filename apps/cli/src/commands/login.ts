@@ -59,9 +59,13 @@ export const login = new Command('login')
         `Logged in as ${result.user.name} (${result.user.email}) [${result.user.role}]`,
       )
     } catch (err) {
-      spinner.fail(
-        `Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      )
-      process.exitCode = 1
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      const isTimeout = message.includes('timed out')
+
+      spinner.fail(`Login failed: ${message}`)
+
+      if (!isTimeout) {
+        process.exitCode = 1
+      }
     }
   })
