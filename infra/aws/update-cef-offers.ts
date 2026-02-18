@@ -38,8 +38,8 @@ function createQueuePair(env: string) {
 
 const { queue } = createQueuePair($app.stage);
 
-new aws.ssm.Parameter("SsmSqsQueueUrl", {
-  name: `/bidradar/${$app.stage}/sqs-queue-url`,
+new aws.ssm.Parameter("SsmEnvSqsQueueUrl", {
+  name: `/bidradar/${$app.stage}/env/SQS_QUEUE_URL`,
   type: "String",
   value: queue.url,
 });

@@ -128,7 +128,7 @@ jobs:
         id: sst-outputs
         run: |
           STAGING_URL=$(aws ssm get-parameter \
-            --name /bidradar/staging/api-url \
+            --name /bidradar/staging/env/BIDRADAR_API_URL \
             --query 'Parameter.Value' --output text)
 
           if [ -z "$STAGING_URL" ] || [ "$STAGING_URL" = "None" ]; then
@@ -209,7 +209,7 @@ jobs:
         id: sst-outputs
         run: |
           PROD_URL=$(aws ssm get-parameter \
-            --name /bidradar/prod/api-url \
+            --name /bidradar/prod/env/BIDRADAR_API_URL \
             --query 'Parameter.Value' --output text)
 
           if [ -z "$PROD_URL" ] || [ "$PROD_URL" = "None" ]; then

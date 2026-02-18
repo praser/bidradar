@@ -23,6 +23,37 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>
 
-export function loadEnv(): Env {
+export async function loadEnv(): Promise<Env> {
+  if (!process.env.DATABASE_URL) {
+    const stage = process.env.BIDRADAR_ENV ?? 'local'
+    const prefix = `/bidradar/${stage}/env/`
+
+    const { SSMClient, GetParametersByPathCommand } = await import(
+      '@aws-sdk/client-ssm'
+    )
+
+    const ssm = new SSMClient()
+    let nextToken: string | undefined
+
+    do {
+      const result = await ssm.send(
+        new GetParametersByPathCommand({
+          Path: prefix,
+          WithDecryption: true,
+          NextToken: nextToken,
+        }),
+      )
+
+      for (const param of result.Parameters ?? []) {
+        const key = param.Name!.slice(prefix.length)
+        if (!(key in process.env)) {
+          process.env[key] = param.Value
+        }
+      }
+
+      nextToken = result.NextToken
+    } while (nextToken)
+  }
+
   return envSchema.parse(process.env)
 }

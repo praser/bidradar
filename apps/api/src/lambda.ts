@@ -4,9 +4,9 @@ import { loadEnv } from './env.js'
 
 let cached: ReturnType<typeof handle>
 
-function getHandler() {
+async function getHandler() {
   if (!cached) {
-    const env = loadEnv()
+    const env = await loadEnv()
     const app = createApp(env)
     cached = handle(app)
   }
@@ -18,7 +18,7 @@ export const handler = async (
   context: Parameters<ReturnType<typeof handle>>[1],
 ) => {
   try {
-    return await getHandler()(event, context)
+    return await (await getHandler())(event, context)
   } catch (err) {
     console.error('Lambda bootstrap error:', err)
     return {

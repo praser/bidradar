@@ -46,11 +46,47 @@ new aws.lambda.Permission("ApiPublicInvoke", {
 });
 
 // ---------------------------------------------------------------------------
-// SSM Parameter — single source of truth for the API URL
+// SSM Parameters — env vars for apps and tools to discover at runtime
 // ---------------------------------------------------------------------------
 
-new aws.ssm.Parameter("SsmApiUrl", {
-  name: `/bidradar/${$app.stage}/api-url`,
+new aws.ssm.Parameter("SsmEnvDatabaseUrl", {
+  name: `/bidradar/${$app.stage}/env/DATABASE_URL`,
+  type: "SecureString",
+  value: secrets.DATABASE_URL.value,
+});
+
+new aws.ssm.Parameter("SsmEnvJwtSecret", {
+  name: `/bidradar/${$app.stage}/env/JWT_SECRET`,
+  type: "SecureString",
+  value: secrets.JWT_SECRET.value,
+});
+
+new aws.ssm.Parameter("SsmEnvGoogleClientId", {
+  name: `/bidradar/${$app.stage}/env/GOOGLE_CLIENT_ID`,
+  type: "String",
+  value: secrets.GOOGLE_CLIENT_ID.value,
+});
+
+new aws.ssm.Parameter("SsmEnvGoogleClientSecret", {
+  name: `/bidradar/${$app.stage}/env/GOOGLE_CLIENT_SECRET`,
+  type: "SecureString",
+  value: secrets.GOOGLE_CLIENT_SECRET.value,
+});
+
+new aws.ssm.Parameter("SsmEnvAdminEmails", {
+  name: `/bidradar/${$app.stage}/env/ADMIN_EMAILS`,
+  type: "String",
+  value: secrets.ADMIN_EMAILS.value,
+});
+
+new aws.ssm.Parameter("SsmEnvBucketName", {
+  name: `/bidradar/${$app.stage}/env/BUCKET_NAME`,
+  type: "String",
+  value: bucket.name,
+});
+
+new aws.ssm.Parameter("SsmEnvBidradarApiUrl", {
+  name: `/bidradar/${$app.stage}/env/BIDRADAR_API_URL`,
   type: "String",
   value: api.url,
 });
