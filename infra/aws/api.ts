@@ -1,6 +1,10 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
-export const bucket = new sst.aws.Bucket("CefDownloads");
+export const bucket = new sst.aws.Bucket("DownloadsBucket", {
+  transform: {
+    bucket: { bucket: `bidradar-${$app.stage}-downloads` },
+  },
+});
 
 export const secrets = {
   DATABASE_URL: new sst.Secret("DatabaseUrl", process.env.DATABASE_URL),
@@ -25,6 +29,9 @@ const api = new sst.aws.Function("Api", {
     GOOGLE_CLIENT_SECRET: secrets.GOOGLE_CLIENT_SECRET.value,
     ADMIN_EMAILS: secrets.ADMIN_EMAILS.value,
     BUCKET_NAME: bucket.name,
+  },
+  transform: {
+    function: { name: `bidradar-${$app.stage}-api` },
   },
 });
 

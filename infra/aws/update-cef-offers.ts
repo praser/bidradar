@@ -1,10 +1,11 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
-import { bucket, secrets } from "./api.js";
-
 // Dead-letter queue for messages that fail processing after 3 attempts
 const dlq = new sst.aws.Queue("CefDownloadDLQ", {
   visibilityTimeout: "11 minutes",
+  transform: {
+    queue: { name: `bidradar-${$app.stage}-cef-download-dlq` },
+  },
 });
 
 const queue = new sst.aws.Queue("CefDownloadQueue", {
@@ -12,6 +13,7 @@ const queue = new sst.aws.Queue("CefDownloadQueue", {
   dlq: dlq.arn,
   transform: {
     queue: {
+      name: `bidradar-${$app.stage}-cef-download`,
       redrivePolicy: $jsonStringify({
         deadLetterTargetArn: dlq.arn,
         maxReceiveCount: 3,
