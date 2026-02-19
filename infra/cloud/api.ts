@@ -12,7 +12,7 @@ export const secrets = {
   GOOGLE_CLIENT_ID: new sst.Secret("GoogleClientId", process.env.GOOGLE_CLIENT_ID),
   GOOGLE_CLIENT_SECRET: new sst.Secret("GoogleClientSecret", process.env.GOOGLE_CLIENT_SECRET),
   ADMIN_EMAILS: new sst.Secret("AdminEmails", process.env.ADMIN_EMAILS),
-
+  WORKER_API_KEY: new sst.Secret("WorkerApiKey"),
 };
 
 const api = new sst.aws.Function("Api", {
@@ -89,6 +89,12 @@ new aws.ssm.Parameter("SsmEnvBidradarApiUrl", {
   name: `/bidradar/${$app.stage}/env/BIDRADAR_API_URL`,
   type: "String",
   value: api.url,
+});
+
+new aws.ssm.Parameter("SsmEnvBidradarApiKey", {
+  name: `/bidradar/${$app.stage}/env/BIDRADAR_API_KEY`,
+  type: "SecureString",
+  value: secrets.WORKER_API_KEY.value,
 });
 
 // ---------------------------------------------------------------------------

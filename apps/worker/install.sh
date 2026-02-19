@@ -12,7 +12,6 @@ NC='\033[0m'
 INSTALL_DIR="/opt/bidradar"
 SERVICE_USER="bidradar"
 SERVICE_NAME="bidradar-worker"
-ENV_FILE="${INSTALL_DIR}/.env.worker"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUNDLE_FILE="${SCRIPT_DIR}/dist/index.js"
 
@@ -80,6 +79,10 @@ echo -e "${BOLD}╠════════════════════�
 echo -e "${BOLD}║  Architecture: ${CYAN}${ARCH}${NC}${BOLD}                            ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
+echo -e "${CYAN}App-level env vars (SQS_QUEUE_URL, BUCKET_NAME, BIDRADAR_API_URL,${NC}"
+echo -e "${CYAN}BIDRADAR_API_KEY) are loaded from SSM Parameter Store at runtime.${NC}"
+echo -e "${CYAN}Make sure they exist under /bidradar/{stage}/env/ in your AWS account.${NC}"
+echo
 
 # ── 1. Install Node.js 22 ──────────────────────────────────────────
 if command -v node &>/dev/null && node --version | grep -q "^v22\."; then
@@ -136,23 +139,20 @@ cp "$BUNDLE_FILE" "${INSTALL_DIR}/worker/dist/index.js"
 chown "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}/worker/dist/index.js"
 success "Worker bundle deployed"
 
-# ── 5. Collect credentials ──────────────────────────────────────────
+# ── 5. Collect configuration ──────────────────────────────────────────
 echo
 echo -e "${BOLD}── AWS Credentials ──${NC}"
 echo
 
 prompt        AWS_REGION           "AWS region"                       "us-east-1"
-prompt        SQS_QUEUE_URL        "SQS queue URL"
-prompt        BUCKET_NAME          "S3 bucket name"
 prompt_secret AWS_ACCESS_KEY_ID    "AWS access key ID"
 prompt_secret AWS_SECRET_ACCESS_KEY "AWS secret access key"
 
 echo
-echo -e "${BOLD}── Bidradar API ──${NC}"
+echo -e "${BOLD}── Environment ──${NC}"
 echo
 
-prompt        BIDRADAR_API_URL     "API URL (e.g. https://...lambda-url.us-east-1.on.aws)"
-prompt_secret BIDRADAR_API_KEY     "API key (starts with br_)"
+prompt        BIDRADAR_ENV         "SST stage (staging or prod)"      "staging"
 
 echo
 echo -e "${BOLD}── Worker Settings ──${NC}"
@@ -162,25 +162,7 @@ prompt        WORKER_ID            "Worker ID"                        "$(hostnam
 prompt        RATE_LIMIT_DELAY_MS  "Rate limit delay (ms)"            "1000"
 prompt        LOG_LEVEL            "Log level (DEBUG/INFO/WARN/ERROR)" "INFO"
 
-# ── 6. Write environment file ───────────────────────────────────────
-info "Writing environment file..."
-
-cat > "$ENV_FILE" << EOF
-SQS_QUEUE_URL=${SQS_QUEUE_URL}
-BUCKET_NAME=${BUCKET_NAME}
-BIDRADAR_API_URL=${BIDRADAR_API_URL}
-BIDRADAR_API_KEY=${BIDRADAR_API_KEY}
-AWS_REGION=${AWS_REGION}
-WORKER_ID=${WORKER_ID}
-RATE_LIMIT_DELAY_MS=${RATE_LIMIT_DELAY_MS}
-LOG_LEVEL=${LOG_LEVEL}
-EOF
-
-chmod 600 "$ENV_FILE"
-chown "${SERVICE_USER}:${SERVICE_USER}" "$ENV_FILE"
-success "Environment file written to ${ENV_FILE}"
-
-# ── 7. Configure AWS credentials ───────────────────────────────────
+# ── 6. Configure AWS credentials ───────────────────────────────────
 info "Configuring AWS credentials..."
 
 AWS_DIR="/home/${SERVICE_USER}/.aws"
@@ -202,7 +184,7 @@ chmod 700 "$AWS_DIR"
 chmod 600 "${AWS_DIR}/credentials" "${AWS_DIR}/config"
 success "AWS credentials configured"
 
-# ── 8. Install systemd service ──────────────────────────────────────
+# ── 7. Install systemd service ──────────────────────────────────────
 info "Installing systemd service..."
 
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" << EOF
@@ -218,7 +200,10 @@ WorkingDirectory=${INSTALL_DIR}
 ExecStart=/usr/bin/node ${INSTALL_DIR}/worker/dist/index.js
 Restart=always
 RestartSec=10
-EnvironmentFile=${ENV_FILE}
+Environment=BIDRADAR_ENV=${BIDRADAR_ENV}
+Environment=WORKER_ID=${WORKER_ID}
+Environment=RATE_LIMIT_DELAY_MS=${RATE_LIMIT_DELAY_MS}
+Environment=LOG_LEVEL=${LOG_LEVEL}
 
 [Install]
 WantedBy=multi-user.target
@@ -228,7 +213,7 @@ systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 success "Service installed and enabled"
 
-# ── 9. Start the service ────────────────────────────────────────────
+# ── 8. Start the service ────────────────────────────────────────────
 info "Starting ${SERVICE_NAME}..."
 systemctl start "$SERVICE_NAME"
 

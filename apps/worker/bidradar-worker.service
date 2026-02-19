@@ -10,6 +10,7 @@ WorkingDirectory=/opt/bidradar
 ExecStart=/usr/bin/node /opt/bidradar/worker/dist/index.js
 Restart=always
 RestartSec=10
+Environment=BIDRADAR_ENV=staging
 
 [Install]
 WantedBy=multi-user.target
