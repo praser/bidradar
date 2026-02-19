@@ -9,7 +9,7 @@ export interface HeartbeatParams {
 }
 
 async function sendHeartbeat(apiUrl: string, apiKey: string, workerId: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/worker/heartbeat`, {
+  const res = await fetch(new URL('/worker/heartbeat', apiUrl), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

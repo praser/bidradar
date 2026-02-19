@@ -37,7 +37,7 @@ export interface ProcessMessageParams {
 function createApiMetadataRepo(apiUrl: string, apiKey: string): DownloadMetadataRepository {
   return {
     async findByContentHash(hash) {
-      const res = await fetch(`${apiUrl}/management/check-hash`, {
+      const res = await fetch(new URL('/management/check-hash', apiUrl), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
         body: JSON.stringify({ contentHash: hash }),
@@ -47,7 +47,7 @@ function createApiMetadataRepo(apiUrl: string, apiKey: string): DownloadMetadata
       return data.exists ? { id: 'existing' } : undefined
     },
     async insert(metadata) {
-      const res = await fetch(`${apiUrl}/management/record-download`, {
+      const res = await fetch(new URL('/management/record-download', apiUrl), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
         body: JSON.stringify(metadata),
