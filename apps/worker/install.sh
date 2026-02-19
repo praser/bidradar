@@ -94,7 +94,25 @@ else
   success "Node.js $(node --version) installed"
 fi
 
-# ── 2. Install Chrome / Chromium ────────────────────────────────────
+# ── 2. Create user and directories ─────────────────────────────────
+# (must happen before Chromium install so the service user exists)
+if id "$SERVICE_USER" &>/dev/null; then
+  success "User '${SERVICE_USER}' already exists"
+else
+  info "Creating system user '${SERVICE_USER}'..."
+  useradd --system --create-home --shell /bin/bash "$SERVICE_USER"
+  success "User '${SERVICE_USER}' created"
+fi
+
+info "Creating directories..."
+mkdir -p "${INSTALL_DIR}/worker/dist"
+chown -R "${SERVICE_USER}:${SERVICE_USER}" "$INSTALL_DIR"
+success "Directories ready at ${INSTALL_DIR}"
+
+# ── 3. Install Chrome / Chromium ────────────────────────────────────
+# On amd64 we use the official Google Chrome .deb package.
+# On arm64 we use Playwright's standalone Chromium — the Ubuntu snap
+# Chromium cannot run inside systemd services (cgroup restriction).
 if [[ "$ARCH" == "amd64" ]]; then
   if command -v google-chrome &>/dev/null; then
     success "Google Chrome already installed"
@@ -109,31 +127,32 @@ if [[ "$ARCH" == "amd64" ]]; then
     success "Google Chrome installed"
   fi
 else
-  if command -v chromium-browser &>/dev/null || command -v chromium &>/dev/null; then
-    success "Chromium already installed"
+  # Check if Playwright Chromium is already installed for the service user
+  PW_CACHE="/home/${SERVICE_USER}/.cache/ms-playwright"
+  PW_CHROME=""
+  if [[ -d "$PW_CACHE" ]]; then
+    for d in "${PW_CACHE}"/chromium-*/; do
+      if [[ -x "${d}chrome-linux/chrome" ]]; then
+        PW_CHROME="${d}chrome-linux/chrome"
+        break
+      fi
+    done
+  fi
+
+  if [[ -n "$PW_CHROME" ]]; then
+    success "Playwright Chromium already installed at ${PW_CHROME}"
   else
-    info "Installing Chromium (arm64)..."
+    info "Installing Playwright Chromium (arm64)..."
     apt-get update -qq
-    apt-get install -y chromium-browser
-    success "Chromium installed"
+    # Install OS-level shared libraries Chromium needs (as root)
+    npx --yes playwright install-deps chromium
+    # Download Chromium binary into the service user's home dir
+    sudo -i -u "$SERVICE_USER" npx --yes playwright install chromium
+    success "Playwright Chromium installed"
   fi
 fi
 
-# ── 3. Create user and directories ─────────────────────────────────
-if id "$SERVICE_USER" &>/dev/null; then
-  success "User '${SERVICE_USER}' already exists"
-else
-  info "Creating system user '${SERVICE_USER}'..."
-  useradd --system --create-home --shell /bin/bash "$SERVICE_USER"
-  success "User '${SERVICE_USER}' created"
-fi
-
-info "Creating directories..."
-mkdir -p "${INSTALL_DIR}/worker/dist"
-chown -R "${SERVICE_USER}:${SERVICE_USER}" "$INSTALL_DIR"
-success "Directories ready at ${INSTALL_DIR}"
-
-# ── 4. Deploy worker bundle ──────────────────────────────────────────
+# ── 4. Deploy worker bundle ─────────────────────────────────────────
 info "Copying worker bundle..."
 cp "$BUNDLE_FILE" "${INSTALL_DIR}/worker/dist/index.js"
 chown "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}/worker/dist/index.js"

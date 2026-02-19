@@ -8,6 +8,7 @@ import {
   type FileStore,
 } from '@bidradar/core'
 import { browserFetch } from './browser-fetch.js'
+import { cefFetchBinary } from './cef-fetch.js'
 import type { Logger } from './logger.js'
 
 const SqsMessageSchema = z
@@ -84,16 +85,10 @@ export async function processMessage(params: ProcessMessageParams): Promise<void
     return
   }
 
-  const baseFetchBinary = async (fetchUrl: string): Promise<Buffer> => {
-    const res = await fetch(fetchUrl)
-    if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`)
-    return Buffer.from(await res.arrayBuffer())
-  }
-
   const fetchBinary =
     fileType === 'offer-list'
-      ? async (u: string) => latin1ToUtf8(await baseFetchBinary(u))
-      : baseFetchBinary
+      ? async (u: string) => latin1ToUtf8(await cefFetchBinary(u))
+      : cefFetchBinary
 
   const options: { url: string; uf?: string; offerId?: string } = { url }
   if (uf) options.uf = uf
