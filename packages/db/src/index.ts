@@ -5,6 +5,8 @@ export {
   users,
   propertyDetails,
   downloadMetadata,
+  apiKeys,
+  workerHeartbeats,
   type OfferRow,
   type OfferInsert,
   type UserRow,
@@ -13,6 +15,10 @@ export {
   type PropertyDetailsInsert,
   type DownloadMetadataRow,
   type DownloadMetadataInsert,
+  type ApiKeyRow,
+  type ApiKeyInsert,
+  type WorkerHeartbeatRow,
+  type WorkerHeartbeatInsert,
 } from './schema.js'
 export { createOfferRepository } from './offer-repository.js'
 export { createUserRepository } from './user-repository.js'
@@ -22,4 +28,6 @@ export {
   type AuthSession,
 } from './auth-session-repository.js'
 export { createDownloadMetadataRepository } from './download-metadata-repository.js'
+export { createApiKeyRepository } from './api-key-repository.js'
+export { createWorkerHeartbeatRepository } from './worker-heartbeat-repository.js'
 export { filterToDrizzle, SORT_COLUMN_MAP } from './filter-to-drizzle.js'

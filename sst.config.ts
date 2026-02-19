@@ -12,5 +12,6 @@ export default $config({
   async run() {
     await import("./infra/cloud/api");
     await import("./infra/cloud/update-cef-offers");
+    await import("./infra/cloud/worker-iam");
   },
 });

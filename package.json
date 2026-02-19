@@ -10,8 +10,6 @@
     "dev:cli": "pnpm --filter @bidradar/cli dev",
     "dev:worker": "pnpm --filter @bidradar/worker dev",
     "build:worker": "pnpm --filter @bidradar/worker build",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
     "env:push": "node scripts/env-push.mjs",
     "env:pull": "node scripts/env-pull.mjs",
     "db:generate": "node scripts/with-ssm-env.mjs pnpm --filter @bidradar/db generate",
