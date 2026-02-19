@@ -12,7 +12,7 @@ import type { Logger } from './logger.js'
 
 const SqsMessageSchema = z
   .object({
-    url: z.string().url(),
+    url: z.url(),
     fileType: z.enum([
       'offer-list',
       'auctions-schedule',

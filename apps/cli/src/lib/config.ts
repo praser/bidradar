@@ -9,7 +9,7 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
 const DEFAULT_API_URL = process.env.BIDRADAR_DEFAULT_API_URL ?? 'http://localhost:3000'
 
 const ConfigSchema = z.object({
-  apiUrl: z.string().url().default(DEFAULT_API_URL),
+  apiUrl: z.url().default(DEFAULT_API_URL),
   token: z.string().optional(),
 })
 

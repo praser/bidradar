@@ -17,7 +17,7 @@ export interface AuthUser {
 }
 
 export const AuthUserSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   email: z.string().email(),
   name: z.string(),
   role: RoleSchema,

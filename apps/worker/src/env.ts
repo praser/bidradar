@@ -2,9 +2,9 @@ import { hostname } from 'node:os'
 import { z } from 'zod'
 
 const EnvSchema = z.object({
-  SQS_QUEUE_URL: z.string().url(),
+  SQS_QUEUE_URL: z.url(),
   BUCKET_NAME: z.string(),
-  BIDRADAR_API_URL: z.string().url(),
+  BIDRADAR_API_URL: z.url(),
   BIDRADAR_API_KEY: z.string(),
 
   WORKER_ID: z.string().default(hostname()),
