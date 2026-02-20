@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-02-20
+
+### Features
+
+- Add hourly EventBridge schedule for CEF file downloads (0da8aa0)
+
+### Other
+
+- Merge pull request #28 from praser/patch-auto-download-files (bd241a1)
+- Remove .env.example file and update setup instructions in CLAUDE.md to reflect the change. (d946b23)
+
 ## [0.6.1] - 2026-02-20
 
 ### Refactoring
