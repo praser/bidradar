@@ -18,8 +18,14 @@ jobs:
   static-checks:
     name: Static Checks
     runs-on: ubuntu-latest
+    outputs:
+      is_act: ${{ steps.env-check.outputs.is_act }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Detect act
+        id: env-check
+        run: echo "is_act=${ACT:-false}" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
 
@@ -35,6 +41,7 @@ jobs:
       - run: pnpm typecheck
 
       - name: Upload build artifacts
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -60,9 +67,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Download build artifacts
+        if: ${{ !env.ACT }}
         uses: actions/download-artifact@v4
         with:
           name: dist
+
+      - name: Build (act fallback)
+        if: ${{ env.ACT }}
+        run: pnpm build
 
       - run: pnpm test --passWithNoTests
 
@@ -70,7 +82,7 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: static-checks
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: needs.static-checks.outputs.is_act != 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     environment: staging
     outputs:
       staging_api_url: ${{ steps.sst-outputs.outputs.staging_api_url }}
@@ -154,7 +166,7 @@ jobs:
     name: Report Failure
     runs-on: ubuntu-latest
     needs: [static-checks, test, deploy-staging, e2e-staging]
-    if: failure()
+    if: failure() && needs.static-checks.outputs.is_act != 'true'
     steps:
       - uses: actions/checkout@v4
 
