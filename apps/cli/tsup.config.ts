@@ -17,7 +17,7 @@ export default defineConfig({
     __CLI_VERSION__: JSON.stringify(pkg.version),
   },
   env: {
-    BIDRADAR_DEFAULT_API_URL: process.env.BIDRADAR_DEFAULT_API_URL ?? 'http://localhost:3000',
+    BIDRADAR_API_URL: process.env.BIDRADAR_API_URL ?? 'http://localhost:3000',
   },
   banner: {
     js: [

@@ -67,8 +67,10 @@ pnpm build               # Build all packages in dependency order
 
 ```bash
 pnpm build               # Build all packages in topological order
-pnpm dev:api             # Build deps + start API with hot reload (tsx watch)
-pnpm dev:cli             # Run CLI in dev mode
+pnpm dev:api             # Build deps + start API with hot reload (loads env from SSM)
+pnpm dev:api --stage staging  # Same but targeting a remote stage
+pnpm dev:cli             # Run CLI in dev mode (loads env from SSM)
+pnpm dev:cli --stage staging  # Run CLI against a remote stage
 pnpm db:generate         # Generate new Drizzle migration from schema changes
 pnpm db:migrate          # Apply pending migrations (local)
 pnpm db:migrate --stage staging  # Apply migrations against a remote stage
@@ -222,7 +224,7 @@ Each environment is a fully independent SST stage with its own Lambda function, 
 - The release pipeline reads URLs from SSM after deploying each stage
 - E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment, default `staging`)
 - Rollback: redeploy a previous commit (`git checkout <tag> && npx sst deploy --stage prod`) or revert on main
-- The CLI default API URL is baked in at build time via the `BIDRADAR_DEFAULT_API_URL` env var in `tsup.config.ts`. Release builds use the prod function URL; local dev defaults to `http://localhost:3000`
+- The CLI API URL is baked in at build time via the `BIDRADAR_API_URL` env var in `tsup.config.ts`. All dev/build scripts load env vars from SSM via `scripts/with-ssm-env.mjs`; local dev defaults to `http://localhost:3000`
 - GitHub environments (`staging` and `prod`) scope secrets (`DATABASE_URL`, `JWT_SECRET`, etc.) per stage
 
 ### Conventional commits
@@ -286,6 +288,6 @@ pnpm test:e2e:live       # E2E tests against deployed staging Lambda (e2e/live/*
 | `ADMIN_EMAILS` | Comma-separated admin emails (auto-assigned admin role on first login) |
 | `PORT` | API listen port (default 3000, local only) |
 | `BUCKET_NAME` | S3 bucket name for CEF file uploads (set automatically by SST via `link`) |
-| `BIDRADAR_DEFAULT_API_URL` | Default API URL baked into CLI at build time (tsup `env`). Release builds set this to the prod function URL |
+| `BIDRADAR_API_URL` | API URL baked into CLI at build time (tsup `env`). Loaded from SSM at build time; release builds use the prod function URL |
 | `DEV_API_URL` | API URL for E2E live tests (takes precedence over SSM lookup) |
 | `BIDRADAR_ENV` | Environment name for SSM parameter lookup in E2E live tests (default `staging`) |

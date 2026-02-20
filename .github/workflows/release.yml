@@ -176,7 +176,7 @@ jobs:
       # --- Build CLI with prod URL baked in ---
       - name: Build CLI for release
         env:
-          BIDRADAR_DEFAULT_API_URL: ${{ needs.deploy-prod.outputs.prod_api_url }}
+          BIDRADAR_API_URL: ${{ needs.deploy-prod.outputs.prod_api_url }}
         run: pnpm --filter @bidradar/cli build
 
       # --- Create CLI tarball ---
