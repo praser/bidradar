@@ -10,6 +10,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   static-checks:
     name: Static Checks
@@ -62,30 +66,14 @@ jobs:
 
       - run: pnpm test --passWithNoTests
 
-  e2e:
-    name: E2E Tests
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: static-checks
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: imoveis
-          POSTGRES_PASSWORD: imoveis
-          POSTGRES_DB: imoveis
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U imoveis"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://imoveis:imoveis@localhost:5432/imoveis
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: staging
+    outputs:
+      staging_api_url: ${{ steps.sst-outputs.outputs.staging_api_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -98,13 +86,108 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - run: pnpm build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ !env.ACT }}
         with:
-          name: dist
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy with SST
+        run: npx sst deploy --stage staging
 
       - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm db:migrate
 
-      - name: Run E2E tests
-        run: pnpm test:e2e
+      - name: Read SST outputs
+        id: sst-outputs
+        run: |
+          STAGING_URL=$(aws ssm get-parameter \
+            --name /bidradar/staging/env/BIDRADAR_API_URL \
+            --query 'Parameter.Value' --output text)
+
+          if [ -z "$STAGING_URL" ] || [ "$STAGING_URL" = "None" ]; then
+            echo "::error::Could not determine staging API URL from SSM"
+            exit 1
+          fi
+
+          echo "staging_api_url=$STAGING_URL" >> "$GITHUB_OUTPUT"
+
+  e2e-staging:
+    name: E2E Tests (Staging)
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Run E2E tests against staging
+        env:
+          DEV_API_URL: ${{ needs.deploy-staging.outputs.staging_api_url }}
+        run: pnpm test:e2e:live
+
+  on-failure:
+    name: Report Failure
+    runs-on: ubuntu-latest
+    needs: [static-checks, test, deploy-staging, e2e-staging]
+    if: failure()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine failed step
+        id: failed
+        run: |
+          if [ "${{ needs.static-checks.result }}" = "failure" ]; then
+            echo "step=Static Checks" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.test.result }}" = "failure" ]; then
+            echo "step=Unit & Integration Tests" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.deploy-staging.result }}" = "failure" ]; then
+            echo "step=Deploy to Staging" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.e2e-staging.result }}" = "failure" ]; then
+            echo "step=E2E Tests (Staging)" >> "$GITHUB_OUTPUT"
+          else
+            echo "step=Unknown" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_STEP: ${{ steps.failed.outputs.step }}
+        run: |
+          BODY="## CI Pipeline Failure
+
+          | Field | Value |
+          |-------|-------|
+          | **Failed Step** | ${FAILED_STEP} |
+          | **Commit SHA** | ${{ github.sha }} |
+          | **Workflow Run** | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+          | **Triggered By** | ${{ github.actor }} |
+
+          ### What happened
+
+          The CI pipeline failed during the **${FAILED_STEP}** step.
+
+          ### Next steps
+
+          1. Click the workflow run link above to inspect the error logs
+          2. Fix the underlying issue
+          3. Push changes to trigger a new CI run"
+
+          gh issue create \
+            --title "CI failed at: ${FAILED_STEP}" \
+            --label "bug,ci" \
+            --body "$BODY"
