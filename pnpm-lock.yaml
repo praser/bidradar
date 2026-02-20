@@ -93,9 +93,6 @@ importers:
       '@bidradar/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
-      '@bidradar/cef':
-        specifier: workspace:*
-        version: link:../../packages/cef
       '@bidradar/core':
         specifier: workspace:*
         version: link:../../packages/core
