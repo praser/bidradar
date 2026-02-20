@@ -56,7 +56,6 @@ packages/core         ──> (no workspace deps, only zod)
 ### Setup
 
 ```bash
-cp .env.example .env     # Edit with real Google OAuth creds
 pnpm install
 pnpm db:migrate          # Run Drizzle migrations locally (needs PostgreSQL running)
                          # For remote stages: pnpm db:migrate --stage staging
