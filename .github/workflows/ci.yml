@@ -96,11 +96,9 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy with SST
-        run: npx sst deploy --stage staging
+        run: node scripts/with-ssm-env.mjs --stage staging npx sst deploy --stage staging
 
       - name: Run database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm db:migrate --stage staging
 
       - name: Read SST outputs
