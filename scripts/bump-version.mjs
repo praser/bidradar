@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Determines the next semver version from conventional commits since the last
- * git tag, then updates every package.json in the monorepo.
+ * Determines the next semver version from the current git branch name,
+ * then updates every package.json in the monorepo.
  *
- * 1. Reads current version from the root package.json
- * 2. Determines bump type (major/minor/patch) from conventional commits
- * 3. Fetches all existing tags from the remote in a single call
- * 4. Increments until it finds a version that doesn't conflict
+ * 1. Reads the current branch name
+ * 2. Determines bump type: "major/*" → major, "minor/*" → minor, else → patch
+ * 3. Collects the highest known version from local package.json and remote tags
+ * 4. Bumps from that highest version, skipping any that already exist
  *
  * Usage:
  *   node scripts/bump-version.mjs          # auto-detect bump type
@@ -68,19 +68,6 @@ function getRemoteTagVersions() {
   }
 }
 
-function getCommitsSince(version) {
-  try {
-    const log = git(`log v${version}..HEAD --pretty="format:%s"`);
-    if (!log) return [];
-    return log.split("\n").filter(Boolean);
-  } catch {
-    // Tag doesn't exist locally — fall back to all commits
-    const log = git('log --pretty="format:%s"');
-    if (!log) return [];
-    return log.split("\n").filter(Boolean);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Version parsing
 // ---------------------------------------------------------------------------
@@ -102,26 +89,31 @@ function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
 }
 
-// ---------------------------------------------------------------------------
-// Conventional commit analysis
-// ---------------------------------------------------------------------------
-
-function determineBumpType(commits) {
-  let bump = "patch"; // default
-
-  for (const msg of commits) {
-    // Breaking change: `feat!:`, `fix!:`, or body contains BREAKING CHANGE
-    if (/^[a-z]+(\(.+\))?!:/.test(msg) || msg.includes("BREAKING CHANGE")) {
-      return "major";
-    }
-    if (/^feat(\(.+\))?:/.test(msg)) {
-      bump = "minor";
-    }
-    // fix:, chore:, docs:, etc. stay as patch
-  }
-
-  return bump;
+/** Returns 1 if a > b, -1 if a < b, 0 if equal. */
+function compareSemver(a, b) {
+  if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+  if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+  if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+  return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Branch-based bump detection
+// ---------------------------------------------------------------------------
+
+function getBranchName() {
+  return git("rev-parse --abbrev-ref HEAD");
+}
+
+function determineBumpType(branch) {
+  if (branch.startsWith("major")) return "major";
+  if (branch.startsWith("minor")) return "minor";
+  return "patch";
+}
+
+// ---------------------------------------------------------------------------
+// Version bumping
+// ---------------------------------------------------------------------------
 
 function applyBump(version, bump) {
   switch (bump) {
@@ -141,15 +133,25 @@ function applyBump(version, bump) {
 }
 
 /**
- * Starting from the initial bump, increment the bumped component until the
- * version doesn't exist in the remote tags.
- *
- *   bump=patch:  0.0.2 → 0.0.3 → 0.0.4 → ...
- *   bump=minor:  0.1.0 → 0.2.0 → 0.3.0 → ...
- *   bump=major:  1.0.0 → 2.0.0 → 3.0.0 → ...
+ * Finds the highest version across local package.json and all remote tags.
  */
-function findAvailableVersion(current, bump, existingVersions) {
-  let candidate = applyBump(current, bump);
+function findHighestVersion(local, remoteVersions) {
+  let highest = local;
+  for (const v of remoteVersions) {
+    const parsed = parseSemver(v);
+    if (compareSemver(parsed, highest) > 0) {
+      highest = parsed;
+    }
+  }
+  return highest;
+}
+
+/**
+ * Starting from the highest known version, bump and increment until the
+ * version doesn't exist in the remote tags.
+ */
+function findAvailableVersion(highest, bump, existingVersions) {
+  let candidate = applyBump(highest, bump);
 
   while (existingVersions.has(formatVersion(candidate))) {
     candidate = applyBump(candidate, bump);
@@ -178,28 +180,25 @@ function updatePackageVersions(newVersion) {
 const dryRun = process.argv.includes("--dry");
 
 const currentVersion = getCurrentVersion();
-const current = parseSemver(currentVersion);
-const existingVersions = getRemoteTagVersions();
+const local = parseSemver(currentVersion);
+const remoteVersions = getRemoteTagVersions();
 
-const commits = getCommitsSince(currentVersion);
+const branch = getBranchName();
+const bump = determineBumpType(branch);
 
-if (commits.length === 0) {
-  console.error("No commits found since last tag. Nothing to bump.");
-  process.exit(1);
-}
-
-const bump = determineBumpType(commits);
-const nextVersion = formatVersion(findAvailableVersion(current, bump, existingVersions));
+const highest = findHighestVersion(local, remoteVersions);
+const nextVersion = formatVersion(findAvailableVersion(highest, bump, remoteVersions));
 
 if (dryRun) {
-  console.error(`Current: ${currentVersion}`);
+  console.error(`Branch:  ${branch}`);
+  console.error(`Local:   ${currentVersion}`);
+  console.error(`Highest: ${formatVersion(highest)}`);
   console.error(`Bump:    ${bump}`);
   console.error(`Next:    ${nextVersion}`);
-  console.error(`Commits: ${commits.length}`);
-  console.error(`Remote tags: ${existingVersions.size}`);
+  console.error(`Remote tags: ${remoteVersions.size}`);
 } else {
   updatePackageVersions(nextVersion);
-  console.error(`Bumped ${currentVersion} -> ${nextVersion} (${bump})`);
+  console.error(`Bumped ${formatVersion(highest)} -> ${nextVersion} (${bump}, branch: ${branch})`);
   console.error(`Updated ${PACKAGE_PATHS.length} package.json files`);
 }
 
