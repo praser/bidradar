@@ -101,7 +101,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate
+        run: pnpm db:migrate --stage staging
 
       - name: Read SST outputs
         id: sst-outputs

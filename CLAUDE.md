@@ -58,7 +58,8 @@ packages/core         ──> (no workspace deps, only zod)
 ```bash
 cp .env.example .env     # Edit with real Google OAuth creds
 pnpm install
-pnpm db:migrate          # Run Drizzle migrations (needs PostgreSQL running)
+pnpm db:migrate          # Run Drizzle migrations locally (needs PostgreSQL running)
+                         # For remote stages: pnpm db:migrate --stage staging
 pnpm build               # Build all packages in dependency order
 ```
 
@@ -69,7 +70,8 @@ pnpm build               # Build all packages in topological order
 pnpm dev:api             # Build deps + start API with hot reload (tsx watch)
 pnpm dev:cli             # Run CLI in dev mode
 pnpm db:generate         # Generate new Drizzle migration from schema changes
-pnpm db:migrate          # Apply pending migrations
+pnpm db:migrate          # Apply pending migrations (local)
+pnpm db:migrate --stage staging  # Apply migrations against a remote stage
 pnpm db:studio           # Open Drizzle Studio (port 4983)
 pnpm test                # Run unit & integration tests
 pnpm test:watch          # Run tests in watch mode
@@ -121,7 +123,7 @@ pnpm dev:cli -- api-key create mykey
 - Drizzle ORM with `postgres.js` driver
 - Numeric columns (prices, percentages) are stored as `numeric` (string in Drizzle) -- convert with `Number()` on read, `String()` on write
 - Schema lives in `packages/db/src/schema.ts`
-- Migrations are in `packages/db/drizzle/` -- generated via `pnpm db:generate`
+- Migrations are in `packages/db/drizzle/` -- generated via `pnpm db:generate`. Run against remote stages with `pnpm db:migrate --stage <stage>`
 - Config in `packages/db/drizzle.config.ts` auto-loads `.env` from monorepo root
 
 ### Architecture patterns

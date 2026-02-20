@@ -86,7 +86,9 @@ docker compose up -d --build api        # Rebuild API image
 Each environment has its own database. Migrations are run as part of the release pipeline. To run manually:
 
 ```bash
-DATABASE_URL="postgresql://..." pnpm db:migrate
+pnpm db:migrate                    # Local (uses BIDRADAR_ENV or defaults to 'local')
+pnpm db:migrate --stage staging # Against a remote stage
+pnpm db:migrate --stage prod    # Against prod
 ```
 
 ## Important

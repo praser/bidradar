@@ -15,7 +15,7 @@ Create a new Drizzle migration after schema changes.
 4. Generate the migration: `pnpm db:generate`
 5. Review the generated SQL in `packages/db/drizzle/`
 6. If the migration needs manual edits (data backfill, etc.), edit the SQL file directly
-7. Test by running: `pnpm db:migrate`
+7. Test by running: `pnpm db:migrate` (or `pnpm db:migrate --stage <stage>` for a remote environment)
 
 ## Important
 

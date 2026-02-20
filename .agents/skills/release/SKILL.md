@@ -70,7 +70,7 @@ Redeploy a previous known-good commit:
 ```bash
 git checkout v<previous-version>
 npx sst deploy --stage prod
-DATABASE_URL="postgresql://..." pnpm db:migrate
+pnpm db:migrate --stage prod
 ```
 
 Or revert the problematic commit on `main` and let the pipeline redeploy both stages.
