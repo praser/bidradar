@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-02-20
+
+### Refactoring
+
+- Determine version bump from branch name instead of commits (63f7554)
+
+### Other
+
+- Merge pull request #27 from praser/chore-tagging (9d3d1dc)
+- Stop triggering CI pipeline after mergin a PR (1b6bc88)
+
 ## [0.6.0] - 2026-02-20
 
 ### Features
