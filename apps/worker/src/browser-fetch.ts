@@ -125,6 +125,10 @@ export async function browserFetch(url: string): Promise<BrowserFetchResult> {
   const browser = await puppeteer.default.launch({ args, executablePath, headless: true })
   try {
     const page = await browser.newPage()
+    await page.setUserAgent(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    )
+    await page.setExtraHTTPHeaders({ Referer: new URL(url).origin + '/' })
     await page.goto(url, { waitUntil: 'networkidle0' })
     const screenshot = await page.screenshot({ fullPage: true, type: 'png' })
     const html = await page.content()
