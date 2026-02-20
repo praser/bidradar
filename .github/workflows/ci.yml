@@ -30,7 +30,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build --stage staging
+      - run: pnpm build
 
       - run: pnpm typecheck
 
@@ -86,7 +86,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build --stage staging
+      - run: pnpm build
 
       - uses: aws-actions/configure-aws-credentials@v4
         if: ${{ !env.ACT }}
@@ -131,8 +131,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build --stage staging
-        
+      - run: pnpm build
+
+      - name: Build CLI with staging URL
+        env:
+          BIDRADAR_API_URL: ${{ needs.deploy-staging.outputs.staging_api_url }}
+        run: pnpm --filter @bidradar/cli build
+
       - uses: aws-actions/configure-aws-credentials@v4
         if: ${{ !env.ACT }}
         with:
