@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-02-20
+
+### Features
+
+- Load env vars from SSM instead of .env files (e731ed0)
+- Support --stage flag in db:migrate, db:generate, and db:studio scripts (9f42acd)
+- Load app config from SSM instead of local env file (4e040e3)
+- Add worker infrastructure with API key auth and IAM provisioning (d10e25f)
+- Centralize environment variables in SSM Parameter Store (fa134e8)
+- Load .env.worker file automatically (23000a7)
+- Add br_ prefix to generated API keys (3d9ba67)
+- Revoke by name instead of id, enforce unique name per user (46f0fd8)
+
+### Bug Fixes
+
+- Pass AWS credentials as env vars for act compatibility (a389e42)
+- Set non-zero exit code on query errors (b45e3cc)
+- Support local act runner by skipping GitHub-only steps (2a9b0c6)
+- Remove --stage flag from pnpm build and bake staging URL into CLI (3639afa)
+- Sync pnpm-lock.yaml after removing @bidradar/cef from cli (f1f5b3b)
+- Address release readiness findings (H1-H3, M1-M6, M8-M10, L1, L6) (4e4cb04)
+- Set Referer header and user agent for browser fetching (47a9197)
+- Resolve Chromium compatibility for headless browser fetching (cfcea53)
+- Use URL constructor instead of string concatenation for API URLs (78dd5aa)
+- Remove DATABASE_URL guard that prevented SSM loading (279dbd4)
+- Bundle all dependencies into single self-contained file (934efb3)
+- Exit 0 for expected errors, reserve exit 1 for unexpected failures (6097b84)
+- Exit 0 when invoked with no arguments (61d43d9)
+
+### Refactoring
+
+- Update schema definitions to use zod's url and uuid types (85f8014)
+- Rename infra/aws to infra/cloud (83c92b1)
+- Replace Lambda aliases with full stack deployments per environment (9cf3ff7)
+
+### Documentation
+
+- Add README and install script for Ubuntu 24 deployment (b7298ef)
+
+### CI/CD
+
+- Load app secrets from SSM instead of GitHub environment secrets (96d7348)
+- Move staging deploy and E2E from release to CI pipeline (ced8a48)
+
+### Chores
+
+- Remove Zyte proxy integration (bb3193b)
+- Use explicit resource names for all SST resources (e33b35d)
+- Remove cef-lambdas package and S3 subscriber Lambda (efbe799)
+
+### Other
+
+- Merge pull request #22 from praser/feat_download_locally (3ca63b2)
+- Add stages to build commands in the pipeline (958c226)
+- Make AWS credentials available in e2e ci tests (a31ee7d)
+- Make AWS credentials available in e2e ci tests (e3758e4)
+- Remove unecessary prompts (4ee3768)
+
 ## [0.5.0] - 2026-02-17
 
 ### Features

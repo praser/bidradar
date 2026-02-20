@@ -1,6 +1,6 @@
 {
   "name": "@bidradar/cli",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "bin": {
     "bidradar": "./dist/bin/index.js"
