@@ -1,5 +1,7 @@
 import { getToken, getApiUrl } from './config.js'
 
+const DEFAULT_TIMEOUT_MS = 10_000
+
 export class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -17,6 +19,8 @@ export async function apiRequest<T>(
   options?: {
     body?: unknown
     query?: Record<string, string | undefined>
+    signal?: AbortSignal
+    timeoutMs?: number
   },
 ): Promise<T> {
   const apiUrl = await getApiUrl()
@@ -36,7 +40,16 @@ export async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const init: RequestInit = { method, headers }
+  const timeoutSignal = AbortSignal.timeout(options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+  const signals = options?.signal
+    ? [options.signal, timeoutSignal]
+    : [timeoutSignal]
+
+  const init: RequestInit = {
+    method,
+    headers,
+    signal: AbortSignal.any(signals),
+  }
   if (options?.body) {
     init.body = JSON.stringify(options.body)
   }

@@ -25,8 +25,8 @@ export async function getDevApiUrl(): Promise<string> {
     return cachedApiUrl
   }
 
-  const env = process.env['BIDRADAR_ENV'] ?? 'dev'
-  const paramName = `/bidradar/${env}/api-url`
+  const env = process.env['BIDRADAR_ENV'] ?? 'staging'
+  const paramName = `/bidradar/${env}/env/BIDRADAR_API_URL`
 
   const ssm = new SSMClient()
   const result = await ssm.send(new GetParameterCommand({ Name: paramName }))

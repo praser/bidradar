@@ -2,14 +2,16 @@
 
 export default $config({
   app(input) {
+    const protectedStages = ["staging", "prod"];
     return {
       name: "bidradar",
       home: "aws",
-      removal: input.stage === "production" ? "retain" : "remove",
+      removal: protectedStages.includes(input.stage) ? "retain" : "remove",
     };
   },
   async run() {
-    await import("./infra/aws/api");
-    await import("./infra/aws/update-cef-offers");
+    await import("./infra/cloud/api");
+    await import("./infra/cloud/update-cef-offers");
+    await import("./infra/cloud/worker-iam");
   },
 });

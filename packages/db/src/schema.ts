@@ -9,6 +9,7 @@ import {
   numeric,
   timestamp,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
 export const downloadMetadata = pgTable(
@@ -133,3 +134,50 @@ export const authSessions = pgTable('auth_sessions', {
     .defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 })
+
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    keyPrefix: text('key_prefix').notNull(),
+    keyHash: text('key_hash').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('idx_api_keys_key_hash').on(table.keyHash),
+    index('idx_api_keys_user_id').on(table.userId),
+    uniqueIndex('idx_api_keys_user_id_name').on(table.userId, table.name),
+  ],
+)
+
+export type ApiKeyRow = typeof apiKeys.$inferSelect
+export type ApiKeyInsert = typeof apiKeys.$inferInsert
+
+export const workerHeartbeats = pgTable(
+  'worker_heartbeats',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workerId: text('worker_id').notNull(),
+    lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('idx_worker_heartbeats_worker_id').on(table.workerId),
+  ],
+)
+
+export type WorkerHeartbeatRow = typeof workerHeartbeats.$inferSelect
+export type WorkerHeartbeatInsert = typeof workerHeartbeats.$inferInsert

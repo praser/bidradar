@@ -10,14 +10,15 @@ export const whoami = new Command('whoami')
       console.log(`${user.name} <${user.email}> [${user.role}]`)
     } catch (err) {
       if (err instanceof ApiError && err.statusCode === 401) {
-        console.log(
+        console.error(
           'Not logged in. Run `bidradar login` to authenticate.',
         )
+        process.exitCode = 1
       } else {
         console.error(
           `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
         )
+        process.exitCode = 1
       }
-      process.exitCode = 1
     }
   })

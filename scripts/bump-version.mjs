@@ -31,6 +31,7 @@ const PACKAGE_PATHS = [
   "packages/cef/package.json",
   "apps/api/package.json",
   "apps/cli/package.json",
+  "apps/worker/package.json",
 ];
 
 // ---------------------------------------------------------------------------

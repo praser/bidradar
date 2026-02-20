@@ -89,12 +89,13 @@ export const query = new Command('query')
           spinner.fail(
             'Not authenticated. Run `bidradar login` to authenticate.',
           )
+          process.exitCode = 1
         } else {
           spinner.fail(
             `Query failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
           )
+          process.exitCode = 1
         }
-        process.exitCode = 1
       }
     },
   )

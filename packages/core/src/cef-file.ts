@@ -74,7 +74,15 @@ export interface ParsedCefS3Key {
 
 export function parseCefS3Key(key: string): ParsedCefS3Key {
   const parts = key.split('/')
-  const fileType = parts[1] as CefFileType
+  const rawFileType = parts[1]
+
+  if (!rawFileType || !(CEF_FILE_TYPES as readonly string[]).includes(rawFileType)) {
+    throw new Error(
+      `Invalid CEF S3 key: unknown file type "${rawFileType ?? ''}" in key "${key}"`,
+    )
+  }
+
+  const fileType = rawFileType as CefFileType
 
   if (fileType === 'offer-details') {
     const offerId = parts[2]!

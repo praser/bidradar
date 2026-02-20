@@ -34,7 +34,7 @@ export function parseSort(input: string): SortClause[] {
 
 // POST /auth/session
 export const AuthSessionResponseSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.uuid(),
 })
 
 // GET /auth/token?session=X
@@ -73,11 +73,11 @@ export const UploadUrlRequestSchema = z.object({
     'accredited-auctioneers',
     'offer-details',
   ]),
-  offerId: z.string().uuid().optional(),
+  offerId: z.uuid().optional(),
 })
 
 export const UploadUrlResponseSchema = z.object({
-  uploadUrl: z.string().url(),
+  uploadUrl: z.url(),
   s3Key: z.string(),
   expiresIn: z.number(),
 })
@@ -97,7 +97,7 @@ export const RecordDownloadRequestSchema = z.object({
   fileExtension: z.string(),
   fileSize: z.number().int().positive(),
   fileType: z.string(),
-  downloadUrl: z.string().url(),
+  downloadUrl: z.url(),
   downloadedAt: z.coerce.date(),
   bucketName: z.string(),
   bucketKey: z.string(),
@@ -105,7 +105,7 @@ export const RecordDownloadRequestSchema = z.object({
 })
 
 export const RecordDownloadResponseSchema = z.object({
-  downloadId: z.string().uuid(),
+  downloadId: z.uuid(),
 })
 
 // GET /management/pending-offer-details
@@ -117,12 +117,66 @@ export const PendingOfferDetailsQuerySchema = z.object({
 export const PendingOfferDetailsResponseSchema = z.object({
   offers: z.array(
     z.object({
-      id: z.string().uuid(),
+      id: z.uuid(),
       sourceId: z.string(),
-      offerUrl: z.string().url(),
+      offerUrl: z.url(),
     }),
   ),
   total: z.number(),
+})
+
+// POST /api-keys
+export const CreateApiKeyRequestSchema = z.object({
+  name: z.string().min(1).max(100),
+})
+
+export const CreateApiKeyResponseSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  key: z.string(),
+  keyPrefix: z.string(),
+  createdAt: z.string(),
+})
+
+// GET /api-keys
+export const ListApiKeysResponseSchema = z.object({
+  keys: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      keyPrefix: z.string(),
+      createdAt: z.string(),
+      lastUsedAt: z.string().nullable(),
+      revokedAt: z.string().nullable(),
+    }),
+  ),
+})
+
+// DELETE /api-keys/:name
+export const RevokeApiKeyResponseSchema = z.object({
+  revoked: z.boolean(),
+})
+
+// POST /worker/heartbeat
+export const WorkerHeartbeatRequestSchema = z.object({
+  workerId: z.string().min(1),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const WorkerHeartbeatResponseSchema = z.object({
+  ok: z.boolean(),
+})
+
+// GET /worker/status
+export const WorkerStatusResponseSchema = z.object({
+  workers: z.array(
+    z.object({
+      workerId: z.string(),
+      lastHeartbeatAt: z.string(),
+      metadata: z.record(z.string(), z.unknown()).nullable(),
+      isAlive: z.boolean(),
+    }),
+  ),
 })
 
 // Error response

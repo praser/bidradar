@@ -6,13 +6,15 @@ describe('loadEnv', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv }
+    // Ensure DATABASE_URL is always set to prevent SSM loading in tests
+    process.env.DATABASE_URL ??= 'postgresql://imoveis:imoveis@localhost:5432/imoveis'
   })
 
   afterEach(() => {
     process.env = originalEnv
   })
 
-  it('parses valid environment variables', () => {
+  it('parses valid environment variables', async () => {
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
@@ -20,7 +22,7 @@ describe('loadEnv', () => {
     process.env.ADMIN_EMAILS = 'admin@example.com, admin2@example.com'
     process.env.PORT = '4000'
 
-    const env = loadEnv()
+    const env = await loadEnv()
     expect(env.DATABASE_URL).toBe('postgresql://user:pass@localhost:5432/db')
     expect(env.JWT_SECRET).toBe('a-very-secret-key-that-is-at-least-32-characters-long!!')
     expect(env.GOOGLE_CLIENT_ID).toBe('google-client-id')
@@ -29,75 +31,65 @@ describe('loadEnv', () => {
     expect(env.PORT).toBe(4000)
   })
 
-  it('uses default DATABASE_URL when not provided', () => {
-    delete process.env.DATABASE_URL
-    process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
-    process.env.GOOGLE_CLIENT_ID = 'google-client-id'
-    process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
-
-    const env = loadEnv()
-    expect(env.DATABASE_URL).toBe('postgresql://imoveis:imoveis@localhost:5432/imoveis')
-  })
-
-  it('uses default PORT when not provided', () => {
+  it('uses default PORT when not provided', async () => {
     delete process.env.PORT
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
 
-    const env = loadEnv()
+    const env = await loadEnv()
     expect(env.PORT).toBe(3000)
   })
 
-  it('parses empty ADMIN_EMAILS to empty array', () => {
+  it('parses empty ADMIN_EMAILS to empty array', async () => {
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
     process.env.ADMIN_EMAILS = ''
 
-    const env = loadEnv()
+    const env = await loadEnv()
     expect(env.ADMIN_EMAILS).toEqual([])
   })
 
-  it('defaults ADMIN_EMAILS to empty array when not provided', () => {
+  it('defaults ADMIN_EMAILS to empty array when not provided', async () => {
     delete process.env.ADMIN_EMAILS
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
 
-    const env = loadEnv()
+    const env = await loadEnv()
     expect(env.ADMIN_EMAILS).toEqual([])
   })
 
-  it('rejects JWT_SECRET shorter than 32 characters', () => {
+  it('rejects JWT_SECRET shorter than 32 characters', async () => {
     process.env.JWT_SECRET = 'short'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
 
-    expect(() => loadEnv()).toThrow()
+    await expect(loadEnv()).rejects.toThrow()
   })
 
-  it('rejects JWT_SECRET starting with "change-me"', () => {
+  it('rejects JWT_SECRET starting with "change-me"', async () => {
     process.env.JWT_SECRET = 'change-me-this-is-a-long-enough-secret-placeholder'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
 
-    expect(() => loadEnv()).toThrow()
+    await expect(loadEnv()).rejects.toThrow()
   })
 
-  it('throws when required GOOGLE_CLIENT_ID is missing', () => {
+  it('throws when required GOOGLE_CLIENT_ID is missing', async () => {
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     delete process.env.GOOGLE_CLIENT_ID
     process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret'
 
-    expect(() => loadEnv()).toThrow()
+    await expect(loadEnv()).rejects.toThrow()
   })
 
-  it('throws when required GOOGLE_CLIENT_SECRET is missing', () => {
+  it('throws when required GOOGLE_CLIENT_SECRET is missing', async () => {
     process.env.JWT_SECRET = 'a-very-secret-key-that-is-at-least-32-characters-long!!'
     process.env.GOOGLE_CLIENT_ID = 'google-client-id'
     delete process.env.GOOGLE_CLIENT_SECRET
 
-    expect(() => loadEnv()).toThrow()
+    await expect(loadEnv()).rejects.toThrow()
   })
 })

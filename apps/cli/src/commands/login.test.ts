@@ -16,6 +16,7 @@ vi.mock('open', () => ({
 vi.mock('ora', () => ({
   default: () => ({
     start: vi.fn().mockReturnThis(),
+    stop: vi.fn().mockReturnThis(),
     succeed: vi.fn().mockReturnThis(),
     fail: vi.fn().mockReturnThis(),
     text: '',
@@ -47,7 +48,9 @@ describe('login command', () => {
 
     await login.parseAsync([], { from: 'user' })
 
-    expect(mockApiRequest).toHaveBeenCalledWith('POST', '/auth/session')
+    expect(mockApiRequest).toHaveBeenCalledWith('POST', '/auth/session', {
+      signal: expect.any(AbortSignal),
+    })
     expect(open).toHaveBeenCalledWith('http://localhost:3000/auth/login?session=sess-123')
     expect(saveConfig).toHaveBeenCalledWith({ token: 'jwt-token' })
   })

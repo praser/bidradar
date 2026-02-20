@@ -9,16 +9,6 @@
   "size": 0.0006084442138671875,
   "filesCount": 2,
   "proxy": {
-    "inherit": false,
-    "config": {
-      "protocol": "http",
-      "hostname": "api.zyte.com",
-      "port": 8011,
-      "auth": {
-        "username": "aadac48e42c3447b8585d74e4e124f4f",
-        "password": ""
-      },
-      "bypassProxy": ""
-    }
+    "inherit": false
   }
 }

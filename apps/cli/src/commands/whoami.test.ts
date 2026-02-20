@@ -47,7 +47,7 @@ describe('whoami command', () => {
 
     await whoami.parseAsync([], { from: 'user' })
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(console.error).toHaveBeenCalledWith(
       'Not logged in. Run `bidradar login` to authenticate.',
     )
     expect(process.exitCode).toBe(1)

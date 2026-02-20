@@ -3,7 +3,6 @@ import type { FileStore } from '@bidradar/core'
 
 export function createS3FileStore(bucketName: string): FileStore {
   const client = new S3Client({})
-
   return {
     async store({ key, content, contentType }) {
       await client.send(
@@ -16,7 +15,6 @@ export function createS3FileStore(bucketName: string): FileStore {
       )
       return { bucketName, bucketKey: key }
     },
-
     async get(key: string): Promise<Buffer> {
       const response = await client.send(
         new GetObjectCommand({
