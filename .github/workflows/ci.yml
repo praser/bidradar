@@ -30,7 +30,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm build --stage staging
 
       - run: pnpm typecheck
 
@@ -86,7 +86,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm build --stage staging
 
       - uses: aws-actions/configure-aws-credentials@v4
         if: ${{ !env.ACT }}
@@ -131,7 +131,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm build --stage staging
         
       - uses: aws-actions/configure-aws-credentials@v4
         if: ${{ !env.ACT }}

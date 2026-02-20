@@ -81,7 +81,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - run: pnpm build --stage prod
 
       - uses: aws-actions/configure-aws-credentials@v4
         if: ${{ !env.ACT }}
@@ -169,7 +169,7 @@ jobs:
           git push origin "v${VERSION}"
 
       # --- Build all packages ---
-      - run: pnpm build
+      - run: pnpm build --stage prod
 
       # --- Build CLI with prod URL baked in ---
       - name: Build CLI for release
