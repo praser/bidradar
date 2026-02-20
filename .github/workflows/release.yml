@@ -32,6 +32,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure git auth (act only)
+        if: ${{ env.ACT }}
+        run: |
+          REPO_URL=$(git remote get-url origin | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||')
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@${REPO_URL#https://}.git"
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -91,13 +97,28 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy with SST
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: node scripts/with-ssm-env.mjs --stage prod npx sst deploy --stage prod
 
       - name: Run database migrations
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: pnpm db:migrate --stage prod
 
       - name: Read SST outputs
         id: sst-outputs
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           PROD_URL=$(aws ssm get-parameter \
             --name /bidradar/prod/env/BIDRADAR_API_URL \
