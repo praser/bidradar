@@ -9,7 +9,7 @@ const ALIVE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
 export function workerRoutes() {
   const app = new Hono<AuthEnv>()
 
-  app.post('/heartbeat', async (c) => {
+  app.post('/heartbeat', authorize('admin'), async (c) => {
     const body = await c.req.json()
     const parsed = WorkerHeartbeatRequestSchema.safeParse(body)
     if (!parsed.success) {

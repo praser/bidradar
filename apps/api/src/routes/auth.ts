@@ -7,6 +7,24 @@ import type { Env } from '../env.js'
 
 const SESSION_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+// Simple in-memory rate limiter for session creation.
+// Effective for local dev and warm Lambda instances.
+const SESSION_RATE_LIMIT = 20
+const SESSION_RATE_WINDOW_MS = 60_000
+const sessionTimestamps: number[] = []
+
+function isSessionRateLimited(): boolean {
+  const now = Date.now()
+  while (sessionTimestamps.length > 0 && sessionTimestamps[0]! < now - SESSION_RATE_WINDOW_MS) {
+    sessionTimestamps.shift()
+  }
+  if (sessionTimestamps.length >= SESSION_RATE_LIMIT) {
+    return true
+  }
+  sessionTimestamps.push(now)
+  return false
+}
+
 export function authRoutes(env: Env) {
   const app = new Hono()
   const oauthClient = new OAuth2Client(
@@ -18,6 +36,12 @@ export function authRoutes(env: Env) {
 
   // POST /auth/session — CLI requests a login session
   app.post('/session', async (c) => {
+    if (isSessionRateLimited()) {
+      return c.json(
+        { error: 'RATE_LIMITED', message: 'Too many session requests. Try again later.', statusCode: 429 },
+        429,
+      )
+    }
     await sessionRepo.cleanExpired()
     const sessionId = randomUUID()
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS)

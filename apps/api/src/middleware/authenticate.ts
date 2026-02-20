@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createMiddleware } from 'hono/factory'
 import * as jose from 'jose'
-import type { AuthUser } from '@bidradar/core'
+import { AuthUserSchema, type AuthUser } from '@bidradar/core'
 import { createApiKeyRepository } from '@bidradar/db'
 
 export type AuthEnv = {
@@ -24,12 +24,25 @@ export function authenticate(jwtSecret: string) {
           issuer: 'bidradar',
         })
 
-        c.set('user', {
-          id: payload.sub as string,
-          email: payload.email as string,
-          name: payload.name as string,
-          role: payload.role as AuthUser['role'],
+        const parsed = AuthUserSchema.safeParse({
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          role: payload.role,
         })
+
+        if (!parsed.success) {
+          return c.json(
+            {
+              error: 'UNAUTHORIZED',
+              message: 'Invalid token payload',
+              statusCode: 401,
+            },
+            401,
+          )
+        }
+
+        c.set('user', parsed.data)
 
         return await next()
       } catch {

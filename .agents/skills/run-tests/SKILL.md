@@ -47,7 +47,7 @@ E2E tests live in the `e2e/` directory at the repo root. They test API routes by
 pnpm test:e2e:live                 # Run against dev Lambda
 ```
 
-These test the real CLI binary against the deployed `dev` Lambda environment.
+These test the real CLI binary against the deployed `staging` Lambda environment.
 
 ## Test file conventions
 
@@ -117,4 +117,4 @@ describe('myFunction', () => {
 ## CI integration
 
 - **PR checks**: Unit tests run in CI after build + typecheck (`pnpm test --passWithNoTests`)
-- **Release pipeline**: E2E tests can run against the deployed `dev` environment after deploy
+- **Release pipeline**: E2E tests can run against the deployed `staging` environment after deploy

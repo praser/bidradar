@@ -1,30 +1,71 @@
 /// <reference path="../../.sst/platform/config.d.ts" />
 
 // ---------------------------------------------------------------------------
-// IAM Group — bidradar-worker (S3, SSM, SQS full access)
+// IAM Group — bidradar-worker (scoped S3, SSM, SQS access)
 // ---------------------------------------------------------------------------
 
 const workerGroup = new aws.iam.Group("WorkerGroup", {
   name: `bidradar-worker-${$app.stage}`,
 });
 
-new aws.iam.GroupPolicyAttachment("WorkerS3Access", {
+new aws.iam.GroupPolicy("WorkerS3Policy", {
   group: workerGroup.name,
-  policyArn: "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+  policy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket",
+          "s3:ListObjectsV2",
+        ],
+        Resource: "*",
+      },
+    ],
+  }),
 });
 
-new aws.iam.GroupPolicyAttachment("WorkerSsmAccess", {
+new aws.iam.GroupPolicy("WorkerSsmPolicy", {
   group: workerGroup.name,
-  policyArn: "arn:aws:iam::aws:policy/AmazonSSMFullAccess",
+  policy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: [
+          "ssm:GetParametersByPath",
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+        ],
+        Resource: "*",
+      },
+    ],
+  }),
 });
 
-new aws.iam.GroupPolicyAttachment("WorkerSqsAccess", {
+new aws.iam.GroupPolicy("WorkerSqsPolicy", {
   group: workerGroup.name,
-  policyArn: "arn:aws:iam::aws:policy/AmazonSQSFullAccess",
+  policy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility",
+        ],
+        Resource: "*",
+      },
+    ],
+  }),
 });
 
 const workerUser = new aws.iam.User("WorkerUser", {
-  name: `bidrdadar-worker-user-${$app.stage}`,
+  name: `bidradar-worker-user-${$app.stage}`,
 });
 
 new aws.iam.UserGroupMembership("WorkerUserGroupMembership", {

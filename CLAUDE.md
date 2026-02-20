@@ -4,7 +4,7 @@ Bidradar is a real estate offer aggregator that scrapes public listings from Bra
 
 ## Architecture
 
-pnpm monorepo with 4 library packages, 2 apps, and 1 infra package.
+pnpm monorepo with 4 library packages, 3 apps, and 1 infra package.
 
 ### Dependency graph
 
@@ -16,6 +16,9 @@ apps/api ──> @bidradar/core
 
 apps/cli ──> @bidradar/core
          ──> @bidradar/api-contract
+
+apps/worker ──> @bidradar/core
+            ──> @bidradar/api-contract
 
 packages/api-contract ──> @bidradar/core
 packages/db           ──> @bidradar/core
@@ -31,13 +34,14 @@ packages/core         ──> (no workspace deps, only zod)
 | `packages/api-contract` | Shared Zod schemas for API request/response validation, sort parser |
 | `packages/db` | Drizzle ORM schema, PostgreSQL repositories (offers, users, property details, auth sessions), filter-to-SQL translator |
 | `packages/cef` | CEF CSV downloader and parser, converts raw CSV rows into domain `Offer` objects via Zod |
-| `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, management (S3 upload URLs), users |
-| `apps/cli` | Commander-based CLI: login, logout, whoami, query, manager (download/upload) commands. Bundled with tsup |
-| `infra/cloud` | SST v3 infrastructure: Lambda function URL with secrets |
+| `apps/api` | Hono HTTP server (also deployable as AWS Lambda), routes: auth (Google OAuth), offers, management (S3 upload URLs), users, worker |
+| `apps/cli` | Commander-based CLI: login, logout, whoami, query, api-key commands. Bundled with tsup |
+| `apps/worker` | Long-running daemon: polls SQS for file download tasks, fetches files from CEF (HTTP or Puppeteer), uploads to S3, reports health via API heartbeats |
+| `infra/cloud` | SST v3 infrastructure: Lambda function URL, SQS queues, S3 bucket, IAM, SSM parameters |
 
 ### Key data flow
 
-1. **Ingest**: CLI `manager download` fetches CEF CSV -> gets presigned S3 URL from API -> uploads to S3 -> processing Lambda parses CSV -> reconciles with DB (immutable versioned rows: insert new, insert updated with bumped version, insert soft-deleted)
+1. **Ingest**: Worker polls SQS for download tasks -> fetches CEF files (HTTP or headless browser) -> uploads to S3 -> API processing parses CSV -> reconciles with DB (immutable versioned rows: insert new, insert updated with bumped version, insert soft-deleted)
 2. **Query**: Filter DSL string -> tokenize -> parse AST -> translate to Drizzle SQL -> paginated query against `currentOffers` view (latest version per source ID)
 3. **Auth**: CLI creates session -> browser opens Google OAuth -> callback writes JWT to session -> CLI polls for token
 
@@ -47,15 +51,14 @@ packages/core         ──> (no workspace deps, only zod)
 
 - Node.js 22 (see `.nvmrc`)
 - pnpm 10.28.2 (corepack-managed)
-- Docker (for PostgreSQL)
+- PostgreSQL 16 (local instance or Docker)
 
 ### Setup
 
 ```bash
 cp .env.example .env     # Edit with real Google OAuth creds
 pnpm install
-docker compose up -d     # Start PostgreSQL
-pnpm db:migrate          # Run Drizzle migrations
+pnpm db:migrate          # Run Drizzle migrations (needs PostgreSQL running)
 pnpm build               # Build all packages in dependency order
 ```
 
@@ -65,8 +68,6 @@ pnpm build               # Build all packages in dependency order
 pnpm build               # Build all packages in topological order
 pnpm dev:api             # Build deps + start API with hot reload (tsx watch)
 pnpm dev:cli             # Run CLI in dev mode
-pnpm db:up               # docker compose up -d
-pnpm db:down             # docker compose down
 pnpm db:generate         # Generate new Drizzle migration from schema changes
 pnpm db:migrate          # Apply pending migrations
 pnpm db:studio           # Open Drizzle Studio (port 4983)
@@ -87,7 +88,8 @@ pnpm --filter @bidradar/api-contract build
 pnpm --filter @bidradar/db build
 pnpm --filter @bidradar/cef build
 pnpm --filter @bidradar/api build
-pnpm --filter @bidradar/cli build    # Uses tsup (bundles everything)
+pnpm --filter @bidradar/cli build      # Uses tsup (bundles everything)
+pnpm --filter @bidradar/worker build   # Uses tsup
 ```
 
 ### Running the CLI locally
@@ -95,7 +97,7 @@ pnpm --filter @bidradar/cli build    # Uses tsup (bundles everything)
 ```bash
 pnpm dev:cli -- login
 pnpm dev:cli -- query -f "uf eq 'DF'"
-pnpm dev:cli -- manager download offer-list
+pnpm dev:cli -- api-key create mykey
 ```
 
 ## Conventions
@@ -162,10 +164,14 @@ pnpm dev:cli -- manager download offer-list
 | `apps/api/src/app.ts` | Hono app factory with route registration |
 | `apps/api/src/routes/auth.ts` | Google OAuth flow (session/login/callback/token) |
 | `apps/api/src/routes/management.ts` | Admin management routes (S3 presigned upload URL) |
+| `apps/api/src/routes/worker.ts` | Worker heartbeat and status routes |
 | `apps/api/src/lambda.ts` | AWS Lambda handler wrapper |
 | `apps/cli/src/commands/query.ts` | Query command with filter/sort/pagination |
-| `apps/cli/src/commands/management.ts` | Manager command: download CEF files and upload to S3 |
+| `apps/cli/src/commands/api-key.ts` | API key management command |
+| `apps/worker/src/index.ts` | Worker entry point: SQS polling, file download, S3 upload |
+| `apps/worker/src/env.ts` | Worker environment variables (Zod schema + SSM loading) |
 | `infra/cloud/api.ts` | SST Lambda function URL definition |
+| `infra/cloud/worker-iam.ts` | Worker IAM user, group, and scoped policies |
 | `sst.config.ts` | SST app config |
 | `.github/workflows/ci.yml` | CI pipeline (static checks, tests, E2E) |
 | `.github/workflows/release.yml` | Release pipeline (version bump, deploy staging, E2E, deploy prod, publish) |
@@ -194,8 +200,8 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 
 ## Infrastructure
 
-- **Local**: Docker Compose (PostgreSQL 16, API container, Drizzle Studio)
-- **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, API URLs stored in SSM Parameter Store (`/bidradar/{env}/api-url`)
+- **Local**: PostgreSQL 16 (run directly or via Docker), API via `pnpm dev:api`
+- **AWS**: SST v3 with Lambda function URL (Node.js 22), secrets via SST Secret, env vars stored in SSM Parameter Store (`/bidradar/{stage}/env/*`)
 - **IMPORTANT: The `aws.lambda.Permission("ApiPublicInvoke")` in `infra/cloud/api.ts` with `action: "lambda:InvokeFunction"` and `principal: "*"` is REQUIRED. SST creates the function URL with AuthorizationType=NONE but does not add the resource-based policy. Without this permission the API returns 403 Forbidden. NEVER remove it.**
 - **CI**: GitHub Actions -- static checks, unit/integration tests, E2E tests on push/PR to main (`.github/workflows/ci.yml`)
 - **Release**: Automated on merge to main -- version bump from conventional commits, deploy to staging, E2E against staging, deploy to prod, CLI tarball + GitHub Release + Homebrew tap (`.github/workflows/release.yml`)
@@ -204,13 +210,13 @@ Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `startswith`, `endswi
 
 Each environment is a fully independent SST stage with its own Lambda function, function URL, SQS queues, and database.
 
-| Environment | SST stage | SSM parameter | Updated by |
+| Environment | SST stage | SSM prefix | Updated by |
 |---|---|---|---|
-| `staging` | `--stage staging` | `/bidradar/staging/api-url` | Automatic on merge to `main` |
-| `prod` | `--stage prod` | `/bidradar/prod/api-url` | Automatic after staging E2E tests pass |
-| Personal | `--stage <name>` | `/bidradar/<name>/api-url` | Manual deploy |
+| `staging` | `--stage staging` | `/bidradar/staging/env/*` | Automatic on merge to `main` |
+| `prod` | `--stage prod` | `/bidradar/prod/env/*` | Automatic after staging E2E tests pass |
+| Personal | `--stage <name>` | `/bidradar/<name>/env/*` | Manual deploy |
 
-- SSM parameters are the single source of truth for API URLs — created by SST during deploy (`infra/cloud/api.ts`)
+- SSM parameters are the single source of truth for environment variables — created by SST during deploy (`infra/cloud/api.ts`)
 - The release pipeline reads URLs from SSM after deploying each stage
 - E2E live tests resolve the API URL via `DEV_API_URL` env var (override) or SSM parameter (default, using `BIDRADAR_ENV` to select environment, default `staging`)
 - Rollback: redeploy a previous commit (`git checkout <tag> && npx sst deploy --stage prod`) or revert on main
@@ -243,7 +249,7 @@ All commits to `main` must follow the [Conventional Commits](https://www.convent
 3. **Deploy to Staging** -- `npx sst deploy --stage staging`, runs migrations, captures staging URL
 4. **E2E Tests (Staging)** -- runs `pnpm test:e2e:live` against the deployed staging stage
 5. **Deploy to Prod** -- `npx sst deploy --stage prod`, runs migrations, captures prod URL
-6. **Release** -- runs `scripts/bump-version.mjs` to bump all 7 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap
+6. **Release** -- runs `scripts/bump-version.mjs` to bump all 8 `package.json` files, runs `scripts/generate-changelog.mjs` to update `CHANGELOG.md`, commits + tags, builds CLI with prod URL baked in, creates GitHub Release with CLI tarball (notes from `CHANGELOG.md`), updates Homebrew tap
 7. **Report Failure** -- on failure, creates a GitHub issue with details of the failed step
 
 Release commits (`chore(release): v*`) are detected and skipped to prevent infinite loops.
@@ -256,13 +262,13 @@ Release commits (`chore(release): v*`) are detected and skipped to prevent infin
 pnpm test                # Unit & integration tests (packages/*/src + apps/*/src)
 pnpm test:watch          # Unit tests in watch mode
 pnpm test:e2e            # E2E tests against local PostgreSQL (e2e/**/*.test.ts)
-pnpm test:e2e:live       # E2E tests against deployed dev Lambda (e2e/live/**/*.test.ts)
+pnpm test:e2e:live       # E2E tests against deployed staging Lambda (e2e/live/**/*.test.ts)
 ```
 
 **Test file conventions:**
 
 - Unit/integration tests: co-located with source as `*.test.ts` files (e.g., `packages/db/src/filter-to-drizzle.test.ts`)
-- E2E tests (local): `e2e/**/*.test.ts` -- require local PostgreSQL via Docker Compose
+- E2E tests (local): `e2e/**/*.test.ts` -- require local PostgreSQL
 - E2E tests (live): `e2e/live/**/*.test.ts` -- require `DEV_API_URL` env var or SSM parameter pointing to deployed staging API
 - Framework: Vitest (config files: `vitest.config.ts`, `vitest.config.e2e.ts`, `vitest.config.e2e.live.ts`)
 
